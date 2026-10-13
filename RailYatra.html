@@ -1,0 +1,1127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RailYatra: train tickets, PNR status and refunds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF0F6;--surface:#FFFFFF;--surface2:#F4F6FA;--text:#0F1D3A;--muted:#566280;--line:#D2D9E6;
+  --blue:#1D3E8A;--btn:#1D3E8A;--board:#14295C;--yellow:#F7C51E;--board-ink:#16130A;
+  --green:#17744D;--green-bg:#DDF3E8;--amber:#7A4F00;--amber-bg:#FFF0C7;--red:#B42A24;--red-bg:#FBE0DE;--grey-bg:#E6EAF2;
+  --focus:#0B5FFF;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A1024;--surface:#121B38;--surface2:#182349;--text:#E8EDFA;--muted:#9BA8C9;--line:#2A3768;
+    --blue:#8CAAF5;--btn:#3A63D4;--green:#5BD39A;--green-bg:#12382A;--amber:#F2C25B;--amber-bg:#3B2D0C;
+    --red:#FF8A82;--red-bg:#43171A;--grey-bg:#1E2850;--focus:#7FA6FF;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A1024;--surface:#121B38;--surface2:#182349;--text:#E8EDFA;--muted:#9BA8C9;--line:#2A3768;
+  --blue:#8CAAF5;--btn:#3A63D4;--green:#5BD39A;--green-bg:#12382A;--amber:#F2C25B;--amber-bg:#3B2D0C;
+  --red:#FF8A82;--red-bg:#43171A;--grey-bg:#1E2850;--focus:#7FA6FF;
+}
+html{height:100%;scroll-padding-top:calc(env(safe-area-inset-top,0px) + 70px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:'Archivo',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+h1,h2,h3,h4{font-stretch:112%;font-weight:800;line-height:1.15;margin:0 0 .5em;letter-spacing:-.01em}
+h1{font-size:clamp(2rem,5vw,3.4rem);font-stretch:125%;font-weight:850}
+h2{font-size:clamp(1.4rem,3vw,1.9rem)}
+h3{font-size:1.15rem}
+p{margin:0 0 1em;max-width:68ch}
+a{color:var(--blue)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.num{font-variant-numeric:tabular-nums}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--board);color:#fff;border-bottom:4px solid var(--yellow)}
+.top-in{display:flex;align-items:center;gap:18px;min-height:58px}
+.logo{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-stretch:118%;font-weight:850;font-size:1.3rem;letter-spacing:-.01em;white-space:nowrap}
+.logo svg{flex:none}
+.nav{display:flex;gap:2px;overflow-x:auto;flex:1;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav a,.nav button{color:#DCE4FA;background:none;border:0;padding:18px 12px 14px;text-decoration:none;font-weight:600;white-space:nowrap;cursor:pointer;border-bottom:4px solid transparent;margin-bottom:-4px;position:relative}
+.nav a:hover,.nav button:hover{color:#fff}
+.nav a[aria-current="page"]{color:#fff;border-bottom-color:var(--yellow)}
+.badge{background:var(--yellow);color:var(--board-ink);border-radius:10px;padding:0 6px;font-size:.75rem;font-weight:800;margin-left:6px}
+
+/* hero */
+.hero{background:var(--board);color:#fff;padding:44px 0 0;position:relative;overflow:hidden}
+.hero h1{margin-bottom:.35em}
+.lead{font-size:1.1rem;color:#C9D5F5;max-width:56ch}
+.sleepers{height:34px;margin-top:40px;background:
+  linear-gradient(#8FA3D8,#8FA3D8) 0 6px/100% 3px no-repeat,
+  linear-gradient(#8FA3D8,#8FA3D8) 0 24px/100% 3px no-repeat,
+  repeating-linear-gradient(90deg,#0C1B45 0 12px,transparent 12px 38px) 0 0/100% 100%;border-top:0}
+.route-draw{position:absolute;right:-20px;top:28px;width:420px;max-width:50vw;opacity:.35;pointer-events:none}
+.route-draw path{stroke-dasharray:900;stroke-dashoffset:900;animation:draw 2.4s ease-out .2s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* station board search */
+.board{background:var(--yellow);color:var(--board-ink);border-radius:8px;padding:22px 22px 20px;position:relative;box-shadow:0 0 0 3px var(--board-ink) inset,0 0 0 7px var(--yellow) inset,0 0 0 9px var(--board-ink) inset;margin:26px 0 0}
+.board::before,.board::after{content:"";position:absolute;width:9px;height:9px;border-radius:50%;background:var(--board-ink);opacity:.7;top:16px}
+.board::before{left:16px}.board::after{right:16px}
+.board-grid{display:grid;grid-template-columns:1.3fr auto 1.3fr 1fr;gap:12px 14px;align-items:end;padding:6px 10px 0}
+.board-row2{display:grid;grid-template-columns:1fr 1fr auto auto;gap:12px 14px;align-items:end;margin-top:16px;padding:0 10px}
+.board label{display:block;font-weight:700;font-size:.9rem;margin-bottom:3px}
+.board input,.board select{background:#FFF9DB;color:var(--board-ink);border:2px solid var(--board-ink);border-radius:4px;padding:10px 12px}
+.board .big{font-size:clamp(1.15rem,2.4vw,1.7rem);font-stretch:118%;font-weight:800;padding:8px 12px}
+.board-grid>div,.board-row2>div{min-width:0}
+.board input[type=date].big{font-size:clamp(1rem,1.8vw,1.3rem);padding:10px 8px}
+.swap{width:44px;height:44px;border-radius:50%;border:2px solid var(--board-ink);background:var(--board-ink);color:var(--yellow);cursor:pointer;font-size:1.2rem;font-weight:800;margin-bottom:3px}
+.chk{display:flex;gap:8px;align-items:center;font-weight:600;padding-bottom:10px}
+.chk input{width:20px;height:20px;accent-color:var(--board-ink)}
+.err{color:var(--red);font-weight:600;margin:8px 10px 0;min-height:1.2em}
+.board .err{color:#7A0F0A}
+
+/* buttons */
+.btn{background:var(--btn);color:#fff;border:2px solid var(--btn);border-radius:6px;padding:11px 18px;font-weight:700;cursor:pointer;font-stretch:104%;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1.2}
+.btn:hover{filter:brightness(1.1)}
+.btn[disabled]{opacity:.5;cursor:not-allowed;filter:none}
+.btn.ghost{background:transparent;color:var(--text);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--text)}
+.btn.dark{background:var(--board-ink);border-color:var(--board-ink);color:var(--yellow)}
+.btn.yellow{background:var(--yellow);border-color:var(--yellow);color:var(--board-ink)}
+.btn.danger{background:transparent;color:var(--red);border-color:var(--red)}
+.btn.sm{padding:6px 12px;font-size:.875rem}
+.link{background:none;border:0;color:var(--blue);text-decoration:underline;cursor:pointer;padding:0;font-weight:600}
+
+/* generic */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:20px}
+.panel.flat{border-radius:0;border-left:0;border-right:0}
+.field label,.lbl{display:block;font-weight:600;font-size:.9rem;margin-bottom:4px}
+.field input,.field select,.inp{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface)}
+.field .hint{font-size:.82rem;color:var(--muted);margin-top:3px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--surface);color:var(--text);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:600;font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--board);border-color:var(--board);color:#fff}
+.tag{display:inline-block;padding:2px 9px;border-radius:4px;font-weight:700;font-size:.8rem}
+.t-avl{background:var(--green-bg);color:var(--green)}
+.t-rac{background:var(--amber-bg);color:var(--amber)}
+.t-wl{background:var(--red-bg);color:var(--red)}
+.t-na{background:var(--grey-bg);color:var(--muted)}
+.t-info{background:var(--grey-bg);color:var(--text)}
+.pagehead{padding:30px 0 10px}
+.pagehead h1{font-size:clamp(1.6rem,3.5vw,2.3rem);font-stretch:118%}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:700;font-size:.85rem;color:var(--muted);background:var(--surface2)}
+.tbl-scroll{overflow-x:auto;max-width:100%}
+.empty{padding:36px 20px;text-align:center;color:var(--muted)}
+
+/* home extras */
+.quick{display:grid;grid-template-columns:1.4fr 1fr;gap:28px;padding:34px 20px 10px}
+.pnr-box{background:var(--surface);border:1.5px solid var(--board);border-radius:6px;padding:18px}
+.pnr-box form{display:flex;gap:10px;flex-wrap:wrap}
+.pnr-box input{flex:1;min-width:150px;padding:10px 12px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface);letter-spacing:.08em;font-variant-numeric:tabular-nums}
+.explain{padding:30px 20px 60px}
+.ex-row{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:34px 0;border-top:1px solid var(--line)}
+.ex-row:nth-child(even) .ex-vis{order:-1}
+.ex-vis{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:20px;display:grid;gap:12px}
+.meter{height:10px;background:var(--grey-bg);border-radius:5px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--green)}
+.steps-h{display:flex;gap:0;align-items:flex-start}
+.steps-h div{flex:1;text-align:center;position:relative;font-size:.85rem;font-weight:600}
+.steps-h div::before{content:"";display:block;width:16px;height:16px;border-radius:50%;background:var(--green);margin:0 auto 6px;position:relative;z-index:1}
+.steps-h div::after{content:"";position:absolute;top:7px;left:50%;width:100%;height:2px;background:var(--green)}
+.steps-h div:last-child::after{display:none}
+.footer{border-top:4px solid var(--yellow);background:var(--board);color:#C9D5F5;padding:28px 0 40px;font-size:.9rem}
+
+/* results */
+.results{display:grid;grid-template-columns:270px 1fr;gap:24px;padding-top:14px;padding-bottom:50px;align-items:start}
+.filters{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px)}
+.filters fieldset{border:0;padding:0;margin:0 0 16px}
+.filters legend{font-weight:800;font-stretch:108%;margin-bottom:6px;padding:0}
+.filters label.opt{display:flex;gap:8px;align-items:center;padding:3px 0;cursor:pointer}
+.filters input[type=checkbox]{width:18px;height:18px;accent-color:var(--blue)}
+.filters input[type=range]{width:100%;accent-color:var(--blue)}
+.datestrip{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin:10px 0 14px}
+.datestrip button{flex:1;min-width:84px;border:1.5px solid var(--line);background:var(--surface);border-radius:4px;padding:8px 6px;cursor:pointer;text-align:center;font-weight:600;line-height:1.25}
+.datestrip button[aria-pressed="true"]{background:var(--yellow);border-color:var(--board-ink);color:var(--board-ink)}
+.train{background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-bottom:14px;overflow:hidden}
+.train-h{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 18px 6px;align-items:baseline}
+.train-h h3{margin:0}
+.runs{display:flex;gap:3px}
+.runs span{width:22px;height:22px;display:grid;place-items:center;font-size:.72rem;font-weight:700;border-radius:3px;background:var(--grey-bg);color:var(--muted)}
+.runs span.on{background:var(--board);color:#fff}
+.runs label:focus-within span{outline:3px solid var(--focus);outline-offset:1px}
+.journey{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:6px 18px 12px}
+.journey .t{font-size:1.5rem;font-stretch:112%;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.journey .s{font-size:.85rem;color:var(--muted)}
+.track{position:relative;height:2px;background:var(--line);margin:0 4px}
+.track::before,.track::after{content:"";position:absolute;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--board);}
+.track::before{left:-4px}.track::after{right:-4px}
+.track span{position:absolute;left:50%;top:-24px;transform:translateX(-50%);background:var(--surface);padding:0 8px;font-size:.82rem;color:var(--muted);white-space:nowrap}
+.tiles{display:flex;gap:8px;flex-wrap:wrap;padding:6px 18px 14px}
+.tile{min-width:128px;text-align:left;border:1.5px solid var(--line);background:var(--surface2);border-radius:4px;padding:8px 10px;cursor:pointer;display:grid;gap:3px;line-height:1.2}
+.tile b{font-stretch:112%;font-size:1rem}
+.tile[aria-pressed="true"]{border-color:var(--board-ink);box-shadow:0 0 0 3px var(--yellow)}
+.tile[disabled]{opacity:.6;cursor:not-allowed}
+.train-f{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 18px;border-top:1px dashed var(--line);background:var(--surface2)}
+.sched{padding:6px 18px 16px;border-top:1px solid var(--line)}
+.stoplist{list-style:none;margin:8px 0 0;padding:0 0 0 22px;position:relative}
+.stoplist::before{content:"";position:absolute;left:6px;top:8px;bottom:8px;width:2px;background:var(--line)}
+.stoplist li{display:grid;grid-template-columns:1fr auto auto;gap:14px;padding:5px 0;position:relative;font-variant-numeric:tabular-nums}
+.stoplist li::before{content:"";position:absolute;left:-21px;top:11px;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--muted)}
+.stoplist li.on::before{background:var(--board);border-color:var(--board)}
+.stoplist li.off{color:var(--muted)}
+.modify{margin-bottom:6px}
+.modify summary{cursor:pointer;font-weight:700;color:var(--blue);padding:6px 0}
+.modify .board{margin-top:8px}
+
+/* booking */
+.cols{display:grid;grid-template-columns:1fr 340px;gap:24px;padding-bottom:60px;align-items:start}
+.stack{display:grid;gap:18px}
+.sticky{position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px)}
+.pax{border:1px solid var(--line);border-radius:6px;padding:14px;background:var(--surface2);display:grid;grid-template-columns:2fr .7fr 1fr 1.2fr auto;gap:10px;align-items:end}
+.fare-row{display:flex;justify-content:space-between;gap:10px;padding:4px 0}
+.fare-row.total{border-top:2px solid var(--text);margin-top:6px;padding-top:10px;font-weight:800;font-size:1.15rem}
+.coach{background:var(--surface2);border:1.5px solid var(--line);border-radius:6px;padding:14px;max-width:460px}
+.seatgrid{display:grid;gap:6px;margin-top:10px}
+.seat{min-height:46px;border:1.5px solid var(--line);background:var(--surface);border-radius:4px;cursor:pointer;display:grid;place-items:center;line-height:1.1;font-weight:700;padding:2px;font-variant-numeric:tabular-nums}
+.seat small{font-weight:500;font-size:.66rem;color:var(--muted)}
+.seat.side{margin-left:10px}
+.seat.taken{background:var(--grey-bg);color:var(--muted);text-decoration:line-through;cursor:not-allowed}
+.seat.held{background:repeating-linear-gradient(45deg,var(--amber-bg) 0 5px,var(--surface) 5px 10px);border-style:dashed;border-color:var(--amber);cursor:not-allowed}
+.seat.sel{background:var(--board);border-color:var(--board);color:#fff}
+.seat.sel small{color:#C9D5F5}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;margin-top:10px}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:3px;border:1.5px solid var(--line);vertical-align:-2px;margin-right:5px}
+
+/* payment */
+.holdbar{background:var(--board);color:#fff;border-radius:6px;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.holdbar b{font-size:1.5rem;font-stretch:118%;color:var(--yellow);font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:2px solid var(--line);margin-bottom:16px}
+.tabs button{background:none;border:0;padding:10px 14px;cursor:pointer;font-weight:700;border-bottom:4px solid transparent;margin-bottom:-2px;color:var(--muted)}
+.tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--yellow)}
+.bank-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.radio{border:1.5px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;gap:8px;align-items:center;cursor:pointer;background:var(--surface)}
+.radio input{accent-color:var(--blue)}
+
+/* ticket */
+.ticket{background:#fff;color:#0F1D3A;max-width:860px;margin:0 auto;border-radius:10px;position:relative;box-shadow:0 2px 0 rgba(0,0,0,.08),0 18px 40px -22px rgba(0,0,0,.5);overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.tk-head{background:#14295C;color:#fff;padding:16px 26px;display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:5px solid #F7C51E}
+.tk-body{display:grid;grid-template-columns:1fr 210px}
+.tk-main{padding:22px 26px}
+.tk-stub{padding:22px 20px;border-left:2px dashed #AEB9D3;position:relative;text-align:center;display:grid;gap:10px;align-content:start;justify-items:center}
+.tk-stub::before,.tk-stub::after{content:"";position:absolute;left:-12px;width:22px;height:22px;border-radius:50%;background:var(--bg)}
+.tk-stub::before{top:-12px}.tk-stub::after{bottom:-12px}
+.tk-route{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:6px 0 16px}
+.tk-route .big{font-size:1.9rem;font-stretch:118%;font-weight:850;line-height:1}
+.tk-kv{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 14px;margin-bottom:16px}
+.tk-kv span{display:block;font-size:.76rem;color:#566280}
+.tk-kv b{font-weight:700}
+.ticket table th{background:#F1F4FA;color:#566280}
+.ticket table td,.ticket table th{border-color:#D8DFEC;padding:8px 10px}
+.ticket .muted{color:#566280}
+.tk-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:18px 0}
+.okbanner{background:var(--green-bg);color:var(--green);border-radius:6px;padding:12px 18px;font-weight:700;max-width:860px;margin:0 auto 16px}
+
+/* trips, pnr */
+.trip{display:grid;grid-template-columns:1fr auto;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px 18px;margin-bottom:12px}
+.timeline{list-style:none;margin:10px 0 0;padding:0 0 0 24px;position:relative}
+.timeline::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.timeline li{position:relative;padding:4px 0 10px}
+.timeline li::before{content:"";position:absolute;left:-23px;top:8px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:2px solid var(--muted)}
+.timeline li.done::before{background:var(--green);border-color:var(--green)}
+.timeline li.now::before{background:var(--yellow);border-color:var(--board-ink)}
+
+/* messages drawer */
+.scrim{position:fixed;inset:0;background:rgba(5,10,30,.5);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--surface);z-index:41;box-shadow:-10px 0 40px rgba(0,0,0,.35);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.drawer-h{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.drawer-b{overflow:auto;padding:14px 18px;flex:1;display:grid;gap:12px;align-content:start}
+.mail{border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.mail-h{background:var(--surface2);padding:8px 12px;font-size:.82rem;color:var(--muted)}
+.mail-b{padding:12px;white-space:pre-line;font-size:.92rem}
+.sms{background:var(--grey-bg);border-radius:14px 14px 14px 3px;padding:10px 14px;font-size:.92rem;max-width:92%}
+.sms-t{font-size:.76rem;color:var(--muted);margin:3px 6px 0}
+
+/* modal + toast */
+.modal-back{position:fixed;inset:0;background:rgba(5,10,30,.6);z-index:50;display:grid;place-items:center;padding:16px;overflow:auto}
+.modal{background:var(--surface);border-radius:8px;padding:24px;width:min(520px,100%);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.modal.wide{width:min(760px,100%)}
+.toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:60;display:grid;gap:8px;width:min(92vw,460px)}
+.toast{background:var(--board-ink);color:#fff;border-left:5px solid var(--yellow);padding:11px 16px;border-radius:4px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.loglines{font-variant-numeric:tabular-nums;font-size:.92rem;display:grid;gap:4px;margin:12px 0}
+.loglines div{padding:6px 10px;background:var(--surface2);border-radius:4px}
+
+/* admin */
+.adm-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 20px}
+.adm-tabs button{border:1.5px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:4px;cursor:pointer;font-weight:700}
+.adm-tabs button[aria-selected="true"]{background:var(--board);color:#fff;border-color:var(--board)}
+.dep-board{background:#0C1B45;color:var(--yellow);border-radius:6px;padding:6px 0;font-variant-numeric:tabular-nums;font-stretch:108%;overflow:hidden}
+.dep-board table{color:var(--yellow)}
+.dep-board th{background:transparent;color:#8FA3D8;border-color:#223665}
+.dep-board td{border-color:#223665;font-weight:700}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line);background:var(--surface);border-radius:6px;margin-bottom:20px}
+.kpis div{padding:16px 18px;border-right:1px solid var(--line)}
+.kpis div:last-child{border-right:0}
+.kpis b{display:block;font-size:1.8rem;font-stretch:118%;font-weight:800;line-height:1.1}
+.bar-h{display:grid;grid-template-columns:80px 1fr 44px;gap:10px;align-items:center;margin:6px 0}
+pre.code{background:var(--surface2);border:1px solid var(--line);padding:12px;border-radius:6px;overflow:auto;font-size:.82rem;line-height:1.45}
+
+@media (max-width:960px){
+  .board-grid{grid-template-columns:1fr 1fr}.swap{display:none}
+  .board-row2{grid-template-columns:1fr 1fr}
+  .quick,.ex-row{grid-template-columns:1fr}
+  .ex-row:nth-child(even) .ex-vis{order:0}
+  .results,.cols{grid-template-columns:1fr}
+  .filters,.sticky{position:static}
+  .kpis{grid-template-columns:1fr 1fr}.kpis div{border-bottom:1px solid var(--line)}
+  .tk-body{grid-template-columns:1fr}.tk-stub{border-left:0;border-top:2px dashed #AEB9D3}
+  .tk-stub::before{left:-12px;top:-12px}.tk-stub::after{left:auto;right:-12px;top:-12px;bottom:auto}
+  .pax{grid-template-columns:1fr 1fr}
+  .route-draw{display:none}
+}
+@media (max-width:560px){
+  .board-grid,.board-row2,.grid2,.grid3{grid-template-columns:1fr}
+  .journey{grid-template-columns:1fr;gap:6px}.track{margin:16px 4px}
+  .tk-kv{grid-template-columns:1fr 1fr}
+  .trip{grid-template-columns:1fr}
+  .logo span{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.route-draw path{stroke-dashoffset:0}}
+@media print{
+  body *{visibility:hidden}
+  #ticket,#ticket *{visibility:visible}
+  #ticket{position:absolute;left:0;top:0;width:100%;box-shadow:none;border-radius:0}
+  .tk-stub::before,.tk-stub::after{display:none}
+  :root{padding:0}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-in">
+    <a class="logo" href="#/" aria-label="RailYatra home">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="5" fill="#F7C51E"/><path d="M9 25 L15 9 M25 25 L19 9" stroke="#16130A" stroke-width="3" stroke-linecap="round"/><path d="M11.5 20h11M13.2 15h7.6" stroke="#16130A" stroke-width="2.6" stroke-linecap="round"/></svg>
+      <span>RailYatra</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#/" data-nav="home">Book tickets</a>
+      <a href="#/pnr" data-nav="pnr">PNR status</a>
+      <a href="#/trips" data-nav="trips">My trips</a>
+      <a href="#/profile" data-nav="profile">Profile</a>
+      <a href="#/admin" data-nav="admin">Admin</a>
+      <button type="button" data-a="drawer" id="msgBtn">Messages<span class="badge" id="msgBadge" hidden>0</span></button>
+    </nav>
+  </div>
+</header>
+
+<main id="main" tabindex="-1"></main>
+
+<footer class="footer">
+  <div class="wrap">
+    <b style="color:#fff">RailYatra</b>
+    <p style="margin-top:6px">This is a front-end prototype. Trains, fares and availability are sample data. Payments, SMS, email, PDF and seat locks are simulated in the browser and need your backend services before launch.</p>
+  </div>
+</footer>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<datalist id="stations"></datalist>
+
+<script>
+(()=>{
+'use strict';
+/* ---------- helpers ---------- */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr=n=>'₹'+(Math.round(n*100)/100).toLocaleString('en-IN',{maximumFractionDigits:2});
+const pad=n=>String(n).padStart(2,'0');
+const hm=t=>pad(Math.floor((t%1440)/60))+':'+pad(t%60);
+const dayOff=t=>Math.floor(t/1440);
+const durTxt=m=>Math.floor(m/60)+'h '+pad(m%60)+'m';
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const fmtDate=(s,o)=>new Date(s+'T00:00').toLocaleDateString('en-IN',o||{weekday:'short',day:'numeric',month:'short'});
+const fmtDT=ms=>new Date(ms).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+const store={get(k,d){try{const v=localStorage.getItem('ry:'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('ry:'+k,JSON.stringify(v))}catch(e){}}};
+const today=new Date();today.setHours(0,0,0,0);
+const SESSION='you';
+let fence=10480;
+
+/* ---------- reference data ---------- */
+const ST={BCT:['Mumbai Central','Mumbai'],CSMT:['Mumbai CSMT','Mumbai'],TNA:['Thane','Thane'],ST:['Surat','Surat'],BRC:['Vadodara Jn','Vadodara'],ADI:['Ahmedabad Jn','Ahmedabad'],RTM:['Ratlam Jn','Ratlam'],KOTA:['Kota Jn','Kota'],NDLS:['New Delhi','Delhi'],PUNE:['Pune Jn','Pune'],NGP:['Nagpur Jn','Nagpur'],HWH:['Howrah Jn','Kolkata'],BPL:['Bhopal Jn','Bhopal']};
+const GROUPS=[['BCT','CSMT','TNA']];
+const CLS={'1A':'First AC','2A':'Second AC','3A':'Third AC',SL:'Sleeper',CC:'AC chair car',EC:'Executive chair car','2S':'Second sitting'};
+const QUOTA={GN:'General',TQ:'Tatkal',PT:'Premium Tatkal',LD:'Ladies',SS:'Senior citizen',DF:'Defence',HP:'Divyangjan'};
+const AC=['1A','2A','3A','CC','EC'],RACOK=['SL','3A','2A'];
+const RATE={'1A':3.9,'2A':2.3,'3A':1.6,SL:.62,CC:1.45,EC:2.8,'2S':.42},MINB={'1A':350,'2A':240,'3A':170,SL:90,CC:140,EC:300,'2S':45};
+const RESV={'1A':60,'2A':50,'3A':40,SL:20,CC:40,EC:60,'2S':15},CATER={'1A':560,'2A':440,'3A':380,CC:320,EC:450};
+const COACH={'1A':'H','2A':'A','3A':'B',SL:'S',CC:'C',EC:'E','2S':'D'},SEATS={'1A':24,'2A':48,'3A':48,SL:48,CC:48,EC:48,'2S':48};
+const BERTHS={'3A':['LB','MB','UB','LB','MB','UB','SL','SU'],SL:['LB','MB','UB','LB','MB','UB','SL','SU'],'2A':['LB','UB','LB','UB','SL','SU'],'1A':['LB','UB'],CC:['W','M','A','A','M','W'],EC:['W','A','A','W'],'2S':['W','M','A','A','M','W']};
+const CLERK={'1A':240,EC:240,'2A':200,'3A':180,CC:180,SL:120,'2S':60};
+const CONV={upi:0,card:23.6,nb:23.6,wallet:11.8};
+const DAYL=['S','M','T','W','T','F','S'];
+
+/* trains: stops are [code, minutes since day 0 of origin, km] */
+const T=(h,m,d=0)=>d*1440+h*60+m;
+const mk=(no,name,type,classes,stops,o={})=>({no,name,type,classes,stops:stops.map(([c,t,km])=>({c,t,km})),days:o.days||[1,1,1,1,1,1,1],pantry:!!o.pantry,catering:!!o.catering,status:'Running',delay:0,platform:o.pf||1+hash(no)%9});
+const base=[
+ mk('12951','Mumbai Rajdhani Express','Rajdhani',['1A','2A','3A'],[['BCT',T(16,35),0],['ST',T(19,12),263],['BRC',T(21,20),392],['RTM',T(0,25,1),679],['KOTA',T(3,30,1),928],['NDLS',T(8,32,1),1384]],{pantry:1,catering:1}),
+ mk('12953','August Kranti Rajdhani','Rajdhani',['1A','2A','3A'],[['BCT',T(17,40),0],['ST',T(20,25),263],['BRC',T(22,30),392],['KOTA',T(4,20,1),928],['NDLS',T(10,55,1),1384]],{pantry:1,catering:1}),
+ mk('12009','Shatabdi Express','Shatabdi',['CC','EC'],[['BCT',T(6,25),0],['ST',T(9,12),263],['BRC',T(10,58),392],['ADI',T(12,55),491]],{days:[0,1,1,1,1,1,1],pantry:1,catering:1}),
+ mk('12123','Deccan Queen','Superfast',['CC','2S'],[['CSMT',T(17,10),0],['TNA',T(17,40),34],['PUNE',T(20,25),192]],{pantry:1}),
+ mk('11029','Koyna Express','Express',['SL','3A','2S'],[['CSMT',T(8,40),0],['TNA',T(9,10),34],['PUNE',T(13,15),192]]),
+ mk('12127','Intercity Express','Intercity',['CC','2S'],[['CSMT',T(6,40),0],['TNA',T(7,12),34],['PUNE',T(10,5),192]],{days:[0,1,1,1,1,1,1]}),
+ mk('12859','Gitanjali Express','Superfast',['SL','3A','2A','1A'],[['CSMT',T(6,0),0],['TNA',T(6,32),34],['NGP',T(18,30),837],['HWH',T(12,0,1),1968]],{pantry:1}),
+ mk('12137','Punjab Mail','Mail',['SL','3A','2A','1A'],[['CSMT',T(19,40),0],['TNA',T(20,12),34],['BPL',T(7,45,1),834],['KOTA',T(14,10,1),1100],['NDLS',T(20,35,1),1560]],{pantry:1})
+];
+const rev=(t,no,h,m)=>{const s=t.stops,L=s[s.length-1],st=T(h,m);return mk(no,t.name,t.type,t.classes,[...s].reverse().map(x=>[x.c,st+(L.t-x.t),L.km-x.km]),{days:t.days,pantry:t.pantry,catering:t.catering})};
+const TRAINS=[...base,rev(base[0],'12952',16,55),rev(base[1],'12954',16,25),rev(base[2],'12010',14,40),rev(base[3],'12124',7,15),rev(base[4],'11030',15,0),rev(base[5],'12128',17,50),rev(base[6],'12860',20,15),rev(base[7],'12138',19,30)];
+const trainBy=no=>TRAINS.find(t=>t.no===no);
+const nameOf=c=>ST[c]?ST[c][0]:c;
+const stLabel=c=>ST[c]?`${ST[c][0]} (${c})`:c;
+function parseSt(v){v=(v||'').trim();const m=/\(([A-Z]+)\)\s*$/.exec(v);if(m&&ST[m[1]])return m[1];const k=Object.entries(ST).find(([c,[n,city]])=>n.toLowerCase()===v.toLowerCase()||c===v.toUpperCase()||city.toLowerCase()===v.toLowerCase());return k?k[0]:null}
+
+/* ---------- pricing and availability ---------- */
+function fare(tr,cls,km,quota){
+  const b=Math.max(MINB[cls],Math.round(km*RATE[cls])),res=RESV[cls];
+  const sf=['Rajdhani','Shatabdi','Superfast'].includes(tr.type)?(['1A','EC'].includes(cls)?75:['2A','3A','CC'].includes(cls)?45:30):0;
+  const tat=quota==='TQ'?Math.round(b*(['SL','2S'].includes(cls)?.1:.3)):quota==='PT'?Math.round(b*(['SL','2S'].includes(cls)?.25:.55)):0;
+  const cat=tr.catering?(CATER[cls]||0):0;
+  const gst=AC.includes(cls)?Math.round((b+res+sf+tat)*.05):0;
+  return {base:b,res,sf,tat,cat,gst,total:b+res+sf+tat+cat+gst};
+}
+function avail(tr,cls,date,quota){
+  if(tr.status==='Cancelled')return {t:'CANC'};
+  const h=hash(`${tr.no}|${cls}|${date}|${quota}`);
+  const out=Math.round((new Date(date+'T00:00')-today)/864e5);
+  if((quota==='TQ'||quota==='PT')&&out>1)return {t:'NOPEN',opens:iso(addDays(new Date(date+'T00:00'),-1))};
+  const x=h%100+(out<=2?28:out<=7?12:0),small=!['GN','TQ','PT'].includes(quota);
+  if(x<48)return {t:'AVL',n:small?1+h%9:3+h%40};
+  if(x<72&&RACOK.includes(cls)&&quota==='GN')return {t:'RAC',n:1+h%22};
+  return {t:'WL',n:1+(h>>3)%(quota==='TQ'||quota==='PT'?30:70)};
+}
+const chance=a=>a.t==='WL'?Math.max(4,Math.round(97-a.n*1.6)):a.t==='RAC'?Math.max(40,Math.round(96-a.n*2.2)):100;
+function availTag(a,quota){
+  switch(a.t){
+    case 'AVL':return `<span class="tag t-avl">Available ${a.n}</span>`;
+    case 'RAC':return `<span class="tag t-rac">RAC ${a.n}</span>`;
+    case 'WL':return `<span class="tag t-wl">${quota}WL ${a.n}</span>`;
+    case 'NOPEN':return `<span class="tag t-na">Opens ${fmtDate(a.opens,{day:'numeric',month:'short'})}, 10:00</span>`;
+    default:return `<span class="tag t-na">Cancelled</span>`;
+  }
+}
+
+/* ---------- state ---------- */
+const S={
+  q:{from:'TNA',to:'NDLS',date:iso(addDays(today,5)),cls:'ANY',quota:'GN',near:true},
+  f:{types:[],dep:[],arr:[],cls:[],avail:false,pantry:false,maxFare:20000,sort:'dep'},
+  pick:null,openSched:null,bk:null,lock:null,
+  profile:store.get('profile',{name:'Aarav Kulkarni',mobile:'9820012345',email:'aarav@example.com',berth:'Lower',autoUpgrade:true,notifySms:true,notifyEmail:true,idType:'Aadhaar',idLast4:'4821'}),
+  saved:store.get('saved',[{name:'Aarav Kulkarni',age:34,gender:'M',pref:'Lower'},{name:'Meera Kulkarni',age:31,gender:'F',pref:'Lower'}]),
+  bookings:[],outbox:store.get('outbox',[]),refunds:store.get('refunds',[]),
+  locks:[],ledger:[],seeded:new Set(),adminTab:'overview',payMethod:'upi',failNext:false,extended:false,
+  quota:{},modal:null,drawer:null,seenOutbox:store.get('seen',0)
+};
+
+/* ---------- locks (simulated Redlock-style) ---------- */
+const NODES=['mum-1','mum-2','mum-3'];
+function logL(type,l,note){S.ledger.unshift({t:Date.now(),type,key:l.key,owner:l.owner,token:l.token,note:note||''});if(S.ledger.length>60)S.ledger.length=60}
+function purgeLocks(){const t=Date.now();S.locks=S.locks.filter(l=>{if(l.exp>t)return true;logL('EXPIRE',l,'ttl elapsed');return false})}
+function heldByOther(key){purgeLocks();return S.locks.some(l=>l.key===key&&l.owner!==SESSION)}
+function tryLock(key,owner,ttl){
+  purgeLocks();
+  const ex=S.locks.find(l=>l.key===key);
+  if(ex&&ex.owner!==owner){logL('CONFLICT',{key,owner,token:ex.token},'held by '+ex.owner);return null}
+  let acks=NODES.filter(()=>Math.random()>.1);
+  if(acks.length<2)acks=NODES.slice(0,2);
+  const l={key,owner,token:++fence,exp:Date.now()+ttl*1000,nodes:acks};
+  S.locks=S.locks.filter(x=>x.key!==key);S.locks.push(l);logL('ACQUIRE',l,`quorum ${acks.length}/3`);return l;
+}
+function unlock(key,owner,why){const l=S.locks.find(x=>x.key===key&&x.owner===owner);if(l){S.locks=S.locks.filter(x=>x!==l);logL(why||'RELEASE',l)}}
+
+/* ---------- search ---------- */
+const fam=(c,near)=>near?(GROUPS.find(g=>g.includes(c))||[c]):[c];
+function runSearch(){
+  const q=S.q,res=[];if(q.from===q.to)return res;
+  const fs=fam(q.from,q.near),ts=fam(q.to,q.near),d=new Date(q.date+'T00:00');
+  for(const tr of TRAINS){
+    const i=tr.stops.findIndex(s=>fs.includes(s.c));if(i<0)continue;
+    const j=tr.stops.findIndex((s,k)=>k>i&&ts.includes(s.c));if(j<0)continue;
+    const org=addDays(d,-dayOff(tr.stops[i].t));if(!tr.days[org.getDay()])continue;
+    const a=tr.stops[i],b=tr.stops[j];
+    res.push({tr,from:a.c,to:b.c,dep:a.t,arr:b.t,km:b.km-a.km,dur:b.t-a.t});
+  }
+  return res;
+}
+const wantedClasses=()=>S.f.cls.length?S.f.cls:(S.q.cls!=='ANY'?[S.q.cls]:null);
+function filteredResults(){
+  const f=S.f,want=wantedClasses(),win=h=>h<6?'night':h<12?'morning':h<18?'afternoon':'evening';
+  let out=runSearch().map(r=>{
+    r.cls=r.tr.classes.filter(c=>!want||want.includes(c)).map(c=>({c,fare:fare(r.tr,c,r.km,S.q.quota),av:avail(r.tr,c,S.q.date,S.q.quota)}));
+    return r;
+  }).filter(r=>r.cls.length&&(!f.types.length||f.types.includes(r.tr.type))&&(!f.dep.length||f.dep.includes(win(Math.floor((r.dep%1440)/60))))&&(!f.arr.length||f.arr.includes(win(Math.floor((r.arr%1440)/60))))&&(!f.pantry||r.tr.pantry)&&(!f.avail||r.cls.some(c=>c.av.t==='AVL'))&&Math.min(...r.cls.map(c=>c.fare.total))<=f.maxFare);
+  const key={dep:r=>r.dep%1440,arr:r=>r.arr%1440,dur:r=>r.dur,fare:r=>Math.min(...r.cls.map(c=>c.fare.total))}[f.sort];
+  return out.sort((a,b)=>key(a)-key(b));
+}
+
+/* ---------- bookings ---------- */
+const pnrGen=()=>{let p;do{p=String(2000000000+Math.floor(Math.random()*7999999999))}while(S.bookings.some(b=>b.pnr===p));return p};
+const payers=bk=>bk.pax.filter(p=>!(+p.age>0&&+p.age<5)).length;
+function depDate(b){return new Date(new Date(b.date+'T00:00').getTime()+(b.dep%1440)*6e4)}
+function bookingStatus(b){
+  const live=b.pax.filter(p=>p.cur!=='CAN');
+  if(!live.length)return 'Cancelled';
+  const a=live.filter(p=>p.cur!=='No berth');
+  if(!a.length)return 'Confirmed';
+  if(a.every(p=>p.cur.startsWith('CNF')||p.cur==='No berth'))return 'Confirmed';
+  if(a.every(p=>/WL/.test(p.cur)))return 'Waitlisted';
+  if(a.some(p=>/RAC/.test(p.cur))&&!a.some(p=>/WL/.test(p.cur)))return 'RAC';
+  return 'Partly confirmed';
+}
+function seedBookings(){
+  const mkB=(o)=>{const tr=trainBy(o.no),a=tr.stops.find(s=>s.c===o.from),z=tr.stops.find(s=>s.c===o.to),f=fare(tr,o.cls,z.km-a.km,'GN');
+    const pax=o.pax.map((p,i)=>({name:p[0],age:p[1],gender:p[2],pref:'No preference',book:p[3],cur:p[3],coach:p[4]||'',seat:p[5]||'',berth:p[6]||''}));
+    return {pnr:o.pnr,no:o.no,name:tr.name,from:o.from,to:o.to,date:iso(addDays(today,o.in)),dep:a.t,arr:z.t,km:z.km-a.km,cls:o.cls,quota:'GN',pax,unit:f.total,total:f.total*pax.length+23.6,pay:{method:'UPI',ref:'RYP'+hash(o.pnr),at:Date.now()-864e5*2},booked:Date.now()-864e5*2,fare:f}};
+  return [
+    mkB({pnr:'4721839056',no:'12951',from:'BCT',to:'NDLS',in:9,cls:'3A',pax:[['Aarav Kulkarni',34,'M','CNF','B2','17','LB'],['Meera Kulkarni',31,'F','CNF','B2','18','MB']]}),
+    mkB({pnr:'2840617395',no:'11029',from:'CSMT',to:'PUNE',in:3,cls:'SL',pax:[['Aarav Kulkarni',34,'M','GNWL 14'],['Ishaan Kulkarni',8,'M','GNWL 15']]})
+  ];
+}
+S.bookings=store.get('bookings',null)||seedBookings();
+const saveAll=()=>{store.set('bookings',S.bookings);store.set('refunds',S.refunds);store.set('outbox',S.outbox);store.set('profile',S.profile);store.set('saved',S.saved)};
+
+/* ---------- notifications ---------- */
+function paxLine(b){return b.pax.map(p=>`${p.name} (${p.cur}${p.coach?` ${p.coach}/${p.seat}`:''})`).join(', ')}
+function notify(b,kind,extra){
+  const to={email:S.profile.email,sms:'+91 '+S.profile.mobile},j=`${nameOf(b.from)} to ${nameOf(b.to)}`;
+  const M={
+    booked:{s:`E-ticket: PNR ${b.pnr}, ${b.name} on ${fmtDate(b.date)}`,e:`Hi ${S.profile.name.split(' ')[0]},\n\nYour booking is complete.\n\nPNR: ${b.pnr}\nTrain: ${b.no} ${b.name}\nJourney: ${j}, ${fmtDate(b.date)}, departs ${hm(b.dep)}\nClass: ${CLS[b.cls]}, quota ${QUOTA[b.quota]}\nPassengers: ${paxLine(b)}\nAmount paid: ${inr(b.total)}\n\nYour e-ticket PDF is attached. Carry the original photo ID of one passenger.`,m:`RailYatra: PNR ${b.pnr}, ${b.no} ${nameOf(b.from)}-${nameOf(b.to)} ${fmtDate(b.date,{day:'numeric',month:'short'})} dep ${hm(b.dep)}. ${paxLine(b)}. Paid ${inr(b.total)}.`},
+    cancel:{s:`Cancellation received for PNR ${b.pnr}`,e:`We cancelled the selected passengers on PNR ${b.pnr}.\nRefund of ${inr(extra)} is on its way to your original payment method. Banks usually credit it in 5 to 7 working days.`,m:`RailYatra: PNR ${b.pnr} cancelled. Refund ${inr(extra)} initiated to your original payment method.`},
+    refund:{s:`Refund credited for PNR ${b.pnr}`,e:`${inr(extra)} has been credited to your original payment method for PNR ${b.pnr}.`,m:`RailYatra: ${inr(extra)} refunded for PNR ${b.pnr}. Check your bank statement.`},
+    move:{s:`Your ticket status changed: PNR ${b.pnr}`,e:`Good news. The waitlist moved on PNR ${b.pnr}.\nNew status: ${paxLine(b)}`,m:`RailYatra: PNR ${b.pnr} status now ${paxLine(b)}.`},
+    resend:{s:`Your e-ticket again: PNR ${b.pnr}`,e:`Here is your e-ticket for PNR ${b.pnr}. The PDF is attached.`,m:`RailYatra: e-ticket for PNR ${b.pnr} sent to ${S.profile.email}.`}
+  }[kind];
+  const t=Date.now(),id=t+Math.random();
+  if(S.profile.notifyEmail||kind==='resend')S.outbox.unshift({id:id+'e',ch:'email',to:to.email,subject:M.s,body:M.e,t});
+  if(S.profile.notifySms&&kind!=='resend')S.outbox.unshift({id:id+'s',ch:'sms',to:to.sms,body:M.m,t});
+  saveAll();updateBadge();
+}
+function updateBadge(){const n=S.outbox.length-S.seenOutbox,b=$('#msgBadge');if(!b)return;b.hidden=n<=0;b.textContent=n}
+
+/* ---------- refund ---------- */
+function refundCalc(b,p){
+  const unit=b.unit,clerk=CLERK[b.cls],hrs=(depDate(b)-Date.now())/36e5,tr=trainBy(b.no);
+  if(tr&&tr.status==='Cancelled')return {refund:unit,deduct:0,rule:'Train cancelled, full refund'};
+  if(/WL/.test(p.cur))return {refund:Math.max(0,unit-60),deduct:Math.min(unit,60),rule:'Waitlisted ticket, flat ₹60 per passenger'};
+  if(b.quota==='TQ'||b.quota==='PT')return {refund:0,deduct:unit,rule:'Confirmed Tatkal tickets are not refundable'};
+  if(hrs>=48)return {refund:Math.max(0,unit-clerk),deduct:Math.min(unit,clerk),rule:'More than 48 hours before departure, flat cancellation charge'};
+  if(hrs>=12)return {refund:Math.round(unit*.75),deduct:Math.round(unit*.25),rule:'12 to 48 hours before departure, 25% of fare'};
+  if(hrs>=4)return {refund:Math.round(unit*.5),deduct:Math.round(unit*.5),rule:'4 to 12 hours before departure, 50% of fare'};
+  return {refund:0,deduct:unit,rule:'Less than 4 hours before departure, no refund'};
+}
+
+/* ---------- ui primitives ---------- */
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;$('#toasts').appendChild(t);setTimeout(()=>t.remove(),4200)}
+function openModal(html,wide){closeModal();const m=document.createElement('div');m.className='modal-back';m.innerHTML=`<div class="modal${wide?' wide':''}" role="dialog" aria-modal="true" tabindex="-1">${html}</div>`;document.body.appendChild(m);S.modal=m;m.addEventListener('mousedown',e=>{if(e.target===m)closeModal()});m.firstElementChild.focus()}
+function closeModal(){if(S.modal){S.modal.remove();S.modal=null}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDrawer()}});
+const go=p=>{if(location.hash==='#'+p)render();else location.hash='#'+p};
+const dl=()=>$('#stations').innerHTML=Object.entries(ST).map(([c,[n]])=>`<option value="${n} (${c})">`).join('');
+const clsOpts=(sel,any)=>(any?`<option value="ANY"${sel==='ANY'?' selected':''}>Any class</option>`:'')+Object.entries(CLS).map(([c,n])=>`<option value="${c}"${sel===c?' selected':''}>${n} (${c})</option>`).join('');
+const quotaOpts=sel=>Object.entries(QUOTA).map(([c,n])=>`<option value="${c}"${sel===c?' selected':''}>${n}</option>`).join('');
+
+/* ---------- views ---------- */
+function searchBoard(){
+  const q=S.q;
+  return `<form class="board" id="searchForm" novalidate>
+    <div class="board-grid">
+      <div><label for="qFrom">From</label><input class="big" id="qFrom" list="stations" value="${esc(stLabel(q.from))}" autocomplete="off"></div>
+      <button type="button" class="swap" data-a="swap" aria-label="Swap stations">⇄</button>
+      <div><label for="qTo">To</label><input class="big" id="qTo" list="stations" value="${esc(stLabel(q.to))}" autocomplete="off"></div>
+      <div><label for="qDate">Date</label><input class="big" id="qDate" type="date" min="${iso(today)}" max="${iso(addDays(today,120))}" value="${q.date}"></div>
+    </div>
+    <div class="board-row2">
+      <div><label for="qCls">Class</label><select id="qCls">${clsOpts(q.cls,true)}</select></div>
+      <div><label for="qQuota">Quota</label><select id="qQuota">${quotaOpts(q.quota)}</select></div>
+      <label class="chk"><input type="checkbox" id="qNear" ${q.near?'checked':''}> Include nearby stations</label>
+      <button class="btn dark" type="submit">Find trains</button>
+    </div>
+    <div class="err" id="qErr" role="alert"></div>
+  </form>`;
+}
+function viewHome(){
+  const pop=[['TNA','PUNE','Thane to Pune'],['TNA','NDLS','Thane to New Delhi'],['BCT','ADI','Mumbai Central to Ahmedabad'],['CSMT','HWH','Mumbai CSMT to Howrah'],['PUNE','CSMT','Pune to Mumbai CSMT']];
+  return `<section class="hero">
+    <svg class="route-draw" viewBox="0 0 420 200" fill="none" aria-hidden="true"><path d="M10 170 C90 170 90 60 170 60 S250 150 330 110 S400 30 410 20" stroke="#F7C51E" stroke-width="3" stroke-linecap="round"/><circle cx="10" cy="170" r="6" fill="#F7C51E"/><circle cx="170" cy="60" r="5" fill="#F7C51E"/><circle cx="330" cy="110" r="5" fill="#F7C51E"/><circle cx="410" cy="20" r="6" fill="#F7C51E"/></svg>
+    <div class="wrap">
+      <h1>Where are you travelling?</h1>
+      <p class="lead">Search trains, hold your seats while you pay, and get the e-ticket by email and SMS.</p>
+      ${searchBoard()}
+    </div>
+    <div class="sleepers" aria-hidden="true"></div>
+  </section>
+  <section class="wrap quick">
+    <div><h2>Popular routes</h2><div class="chips">${pop.map(p=>`<button class="chip" data-a="route" data-f="${p[0]}" data-t="${p[1]}">${p[2]}</button>`).join('')}</div></div>
+    <div class="pnr-box"><h3>Check PNR status</h3>
+      <form id="pnrQuick"><input id="pnrQ" inputmode="numeric" maxlength="10" placeholder="10-digit PNR" aria-label="PNR number"><button class="btn" type="submit">Check status</button></form>
+    </div>
+  </section>
+  <section class="wrap explain">
+    <div class="ex-row"><div><h2>Waitlist and RAC in plain words</h2><p>RAC means you have a seat to sit on and may get a berth later. A waitlist number goes down as other passengers cancel. Before you pay, we show where you would stand and the chance of confirmation.</p></div>
+      <div class="ex-vis"><div style="display:flex;justify-content:space-between;gap:10px"><span class="tag t-avl">Available 12</span><b>Confirmed seat</b></div>
+        <div style="display:flex;justify-content:space-between;gap:10px"><span class="tag t-rac">RAC 6</span><b>About 83% to get a berth</b></div><div class="meter"><i style="width:83%;background:var(--amber)"></i></div>
+        <div style="display:flex;justify-content:space-between;gap:10px"><span class="tag t-wl">GNWL 31</span><b>About 47% to confirm</b></div><div class="meter"><i style="width:47%;background:var(--red)"></i></div></div></div>
+    <div class="ex-row"><div><h2>Your seats stay yours while you pay</h2><p>When you continue to payment we hold the exact seats for 7 minutes. Nobody else can book them in that time, even if they are on another server. If the timer runs out, the seats go back on sale.</p></div>
+      <div class="ex-vis"><div class="holdbar"><span>Seats B2 17 and B2 18 held</span><b>06:42</b></div><p class="small muted" style="margin:0">Held on 3 lock servers, 2 must agree before a seat is yours.</p></div></div>
+    <div class="ex-row"><div><h2>Refunds you can follow</h2><p>Cancel from My trips and see the refund amount before you confirm. We show every step until the money reaches your original payment method.</p></div>
+      <div class="ex-vis"><div class="steps-h"><div>Cancelled</div><div>Sent to bank</div><div style="color:var(--muted)">Credited</div></div><p class="small muted" style="margin:0">Banks usually take 5 to 7 working days.</p></div></div>
+  </section>`;
+}
+const winChip=(g,k,v,l)=>`<label class="opt"><input type="checkbox" data-filter="${g}" value="${v}" ${S.f[g].includes(v)?'checked':''}> ${l}</label>`;
+function filtersHtml(){
+  const types=['Rajdhani','Shatabdi','Superfast','Express','Mail','Intercity'],wins=[['night','Midnight to 6 am'],['morning','6 am to 12 pm'],['afternoon','12 pm to 6 pm'],['evening','6 pm to midnight']];
+  return `<form class="filters" id="filters" aria-label="Filter trains">
+    <fieldset><legend>Sort by</legend><select id="fSort"><option value="dep"${S.f.sort==='dep'?' selected':''}>Departure time</option><option value="arr"${S.f.sort==='arr'?' selected':''}>Arrival time</option><option value="dur"${S.f.sort==='dur'?' selected':''}>Shortest journey</option><option value="fare"${S.f.sort==='fare'?' selected':''}>Lowest fare</option></select></fieldset>
+    <fieldset><legend>Train type</legend>${types.map(t=>winChip('types','',t,t)).join('')}</fieldset>
+    <fieldset><legend>Departure</legend>${wins.map(w=>winChip('dep','',w[0],w[1])).join('')}</fieldset>
+    <fieldset><legend>Arrival</legend>${wins.map(w=>winChip('arr','',w[0],w[1])).join('')}</fieldset>
+    <fieldset><legend>Class</legend>${Object.entries(CLS).map(([c,n])=>winChip('cls','',c,`${n}`)).join('')}</fieldset>
+    <fieldset><legend>Fare up to <span id="fareOut">${inr(S.f.maxFare)}</span></legend><input type="range" id="fFare" min="200" max="20000" step="100" value="${S.f.maxFare}" aria-label="Maximum fare"></fieldset>
+    <fieldset><legend>More</legend><label class="opt"><input type="checkbox" id="fAvail" ${S.f.avail?'checked':''}> Only with seats available</label><label class="opt"><input type="checkbox" id="fPantry" ${S.f.pantry?'checked':''}> Pantry car</label></fieldset>
+    <button type="button" class="btn ghost sm" data-a="clearf">Clear filters</button>
+  </form>`;
+}
+function trainRow(r){
+  const tr=r.tr,run=tr.status!=='Running'?`<span class="tag ${tr.status==='Cancelled'?'t-wl':'t-rac'}">${tr.status}${tr.delay?` ${tr.delay} min`:''}</span>`:'';
+  const pk=S.pick&&S.pick.no===tr.no?r.cls.find(c=>c.c===S.pick.cls):null;
+  const stops=tr.stops;
+  return `<article class="train" data-no="${tr.no}">
+    <div class="train-h"><h3>${esc(tr.name)} <span class="muted num" style="font-weight:600">${tr.no}</span></h3>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${run}<span class="tag t-info">${tr.type}</span>${tr.pantry?'<span class="tag t-info">Pantry</span>':''}<span class="runs" aria-label="Runs on">${DAYL.map((d,i)=>`<span class="${tr.days[i]?'on':''}">${d}</span>`).join('')}</span></div></div>
+    <div class="journey">
+      <div><div class="t">${hm(r.dep)}</div><div class="s">${esc(nameOf(r.from))}${r.from!==S.q.from?' (nearby)':''}</div></div>
+      <div class="track"><span>${durTxt(r.dur)}, ${r.km} km</span></div>
+      <div style="text-align:right"><div class="t">${hm(r.arr)}</div><div class="s">${esc(nameOf(r.to))}${dayOff(r.arr)>dayOff(r.dep)?` (+${dayOff(r.arr)-dayOff(r.dep)} day)`:''}</div></div>
+    </div>
+    <div class="tiles" role="group" aria-label="Classes and availability">${r.cls.map(c=>`<button type="button" class="tile" data-a="pick" data-no="${tr.no}" data-cls="${c.c}" aria-pressed="${pk&&pk.c===c.c}" ${c.av.t==='CANC'?'disabled':''}><b>${c.c} <span class="muted" style="font-weight:500;font-size:.8rem">${inr(c.fare.total)}</span></b>${availTag(c.av,S.q.quota)}</button>`).join('')}</div>
+    <div class="train-f">
+      <button class="link" data-a="sched" data-no="${tr.no}" aria-expanded="${S.openSched===tr.no}">${S.openSched===tr.no?'Hide':'View'} schedule</button>
+      ${pk?`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="small">${CLS[pk.c]}, ${QUOTA[S.q.quota]}${pk.av.t==='WL'||pk.av.t==='RAC'?`, ${chance(pk.av)}% chance of confirmation`:''}</span><button class="btn yellow" data-a="book" data-no="${tr.no}" data-cls="${pk.c}" data-from="${r.from}" data-to="${r.to}" ${pk.av.t==='NOPEN'||pk.av.t==='CANC'?'disabled':''}>Book ${pk.c} ticket</button></div>`:'<span class="small muted">Choose a class to continue</span>'}
+    </div>
+    ${S.openSched===tr.no?`<div class="sched"><b>Schedule</b><ul class="stoplist">${stops.map((s,k)=>`<li class="${k>=stops.findIndex(x=>x.c===r.from)&&k<=stops.findIndex(x=>x.c===r.to)?'on':'off'}"><span>${esc(nameOf(s.c))}</span><span>${hm(s.t)}${dayOff(s.t)?` <small>day ${dayOff(s.t)+1}</small>`:''}</span><span class="muted">${s.km} km</span></li>`).join('')}</ul><p class="small muted" style="margin-top:8px">Platform ${tr.platform} at the origin. Highlighted stops are on your journey.</p></div>`:''}
+  </article>`;
+}
+function listHtml(){
+  const rs=filteredResults();
+  if(S.q.from===S.q.to)return `<div class="panel empty"><h3>Choose two different stations</h3><p>From and To are the same. Change one of them to see trains.</p></div>`;
+  if(!rs.length)return `<div class="panel empty"><h3>No trains match</h3><p>Try another date, turn on nearby stations, or clear a filter.</p><button class="btn" data-a="clearf">Clear filters</button></div>`;
+  return `<p class="muted" aria-live="polite">${rs.length} train${rs.length>1?'s':''} found</p>`+rs.map(trainRow).join('');
+}
+function viewResults(){
+  const q=S.q,ds=[-3,-2,-1,0,1,2,3].map(n=>iso(addDays(new Date(q.date+'T00:00'),n))).filter(d=>d>=iso(today));
+  return `<div class="wrap"><div class="pagehead"><h1>${esc(nameOf(q.from))} to ${esc(nameOf(q.to))}</h1><p class="muted">${fmtDate(q.date,{weekday:'long',day:'numeric',month:'long'})}, ${QUOTA[q.quota]} quota</p>
+    <details class="modify"><summary>Modify search</summary>${searchBoard()}</details>
+    <div class="datestrip" role="group" aria-label="Pick another date">${ds.map(d=>`<button data-a="setdate" data-d="${d}" aria-pressed="${d===q.date}">${fmtDate(d,{weekday:'short'})}<br>${fmtDate(d,{day:'numeric',month:'short'})}</button>`).join('')}</div></div>
+    <div class="results"><div>${filtersHtml()}</div><div id="list">${listHtml()}</div></div></div>`;
+}
+
+/* booking */
+const blankPax=()=>({name:'',age:'',gender:'',pref:'No preference'});
+function seatInfo(bk){
+  const tr=trainBy(bk.no),av=avail(tr,bk.cls,bk.date,bk.quota),tot=SEATS[bk.cls],pre=`${bk.no}|${bk.cls}|${bk.date}|`;
+  const order=Array.from({length:tot},(_,i)=>i+1).sort((a,b)=>hash(pre+a)-hash(pre+b));
+  const free=(av.t==='AVL'?order.slice(0,Math.min(av.n,tot)):[]).sort((a,b)=>a-b);
+  if(av.t==='AVL'&&!S.seeded.has(pre)){S.seeded.add(pre);const f=[...free];for(let i=0;i<3&&f.length>6;i++){const s=f.splice(hash(pre+i)%f.length,1)[0];tryLock(pre+s,'rival-'+(i+1),90+hash(pre+i)%150)}}
+  return {tr,av,tot,pre,free};
+}
+function seatMapHtml(bk){
+  const {av,tot,pre,free}=seatInfo(bk);if(av.t!=='AVL')return '';
+  const names=BERTHS[bk.cls],cols=names.length,n=payers(bk);
+  let h=`<div class="coach"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Coach ${COACH[bk.cls]}1</b><span class="small muted" id="selTxt">${bk.seats.length?'Selected: '+bk.seats.slice().sort((a,b)=>a-b).join(', '):'Pick up to '+n+' seat'+(n>1?'s':'')+' or let us assign'}</span></div><div class="seatgrid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">`;
+  for(let s=1;s<=tot;s++){
+    const st=!free.includes(s)?'taken':heldByOther(pre+s)?'held':bk.seats.includes(s)?'sel':'free',nm=names[(s-1)%cols];
+    h+=`<button type="button" class="seat ${st}${(nm==='SL'||nm==='SU')?' side':''}" data-a="seat" data-n="${s}" ${st==='taken'||st==='held'?'aria-disabled="true"':''} aria-pressed="${st==='sel'}" aria-label="Seat ${s}, ${nm}, ${st==='taken'?'booked':st==='held'?'held by another traveller':st==='sel'?'selected':'free'}">${s}<small>${nm}</small></button>`;
+  }
+  return h+`</div><div class="legend"><span><i></i>Free</span><span><i style="background:var(--board)"></i>Selected</span><span><i style="background:var(--grey-bg)"></i>Booked</span><span><i style="background:repeating-linear-gradient(45deg,var(--amber-bg) 0 3px,var(--surface) 3px 6px);border-style:dashed"></i>Held by another traveller</span></div></div>`;
+}
+function summaryHtml(bk,conv=0){
+  const tr=trainBy(bk.no),f=fare(tr,bk.cls,bk.km,bk.quota),n=payers(bk),av=avail(tr,bk.cls,bk.date,bk.quota);
+  const row=(l,v)=>v?`<div class="fare-row"><span>${l}</span><span class="num">${inr(v*n)}</span></div>`:'';
+  return `<div class="panel sticky"><h3>${esc(tr.name)}</h3><p class="muted small" style="margin-bottom:10px">${tr.no}, ${CLS[bk.cls]}, ${QUOTA[bk.quota]}</p>
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:12px"><div><b class="num">${hm(bk.dep)}</b><div class="small muted">${esc(nameOf(bk.from))}</div></div><span class="muted small">${durTxt(bk.arr-bk.dep)}</span><div style="text-align:right"><b class="num">${hm(bk.arr)}</b><div class="small muted">${esc(nameOf(bk.to))}</div></div></div>
+    <div class="small muted" style="margin-bottom:10px">${fmtDate(bk.date,{weekday:'long',day:'numeric',month:'long'})}</div>
+    <div>${availTag(av,bk.quota)} ${av.t==='WL'||av.t==='RAC'?`<span class="small">${chance(av)}% chance of confirmation</span>`:''}</div>
+    <div style="margin-top:12px">${row('Base fare',f.base)}${row('Reservation',f.res)}${row('Superfast',f.sf)}${row('Tatkal charge',f.tat)}${row('Catering',f.cat)}${row('GST',f.gst)}${conv?`<div class="fare-row"><span>Convenience fee</span><span class="num">${inr(conv)}</span></div>`:''}
+    <div class="fare-row total"><span>Total, ${n} passenger${n>1?'s':''}</span><span class="num">${inr(f.total*n+conv)}</span></div></div>
+    ${n<bk.pax.length?'<p class="small muted" style="margin-top:8px">Children under 5 travel free without a berth.</p>':''}</div>`;
+}
+function viewBook(){
+  const bk=S.bk;if(!bk){go('/results');return ''}
+  const tr=trainBy(bk.no),{av,free}=seatInfo(bk),berth=['1A','2A','3A','SL'].includes(bk.cls);
+  const saved=S.saved.filter(s=>!bk.pax.some(p=>p.name===s.name));
+  return `<div class="wrap"><div class="pagehead"><h1>Passenger details</h1><p class="muted"><button class="link" data-a="back">Back to trains</button></p></div>
+  <div class="cols"><div class="stack">
+    <section class="panel" aria-labelledby="ph"><h2 id="ph" style="font-size:1.25rem">Passengers</h2>
+      ${saved.length&&bk.pax.length<6?`<div class="chips" style="margin-bottom:12px"><span class="small muted" style="align-self:center">Add from saved:</span>${saved.map((s,i)=>`<button class="chip" data-a="addsaved" data-name="${esc(s.name)}">${esc(s.name)}</button>`).join('')}</div>`:''}
+      <div class="stack" id="paxList">${bk.pax.map((p,i)=>paxRow(p,i,berth)).join('')}</div>
+      ${bk.pax.length<6?`<button class="btn ghost sm" style="margin-top:12px" data-a="addpax">Add passenger</button>`:'<p class="small muted">You can book up to 6 passengers on one PNR.</p>'}
+      ${bk.quota==='LD'?'<p class="small muted" style="margin-top:10px">Ladies quota is for women and children below 12.</p>':''}
+      ${bk.quota==='SS'?'<p class="small muted" style="margin-top:10px">Senior citizen quota needs at least one man aged 60 or more, or woman aged 58 or more.</p>':''}
+      ${bk.quota==='DF'?'<p class="small muted" style="margin-top:10px">Show your defence ID or warrant at the station while travelling.</p>':''}
+    </section>
+    <section class="panel"><h2 style="font-size:1.25rem">Where should we send your ticket?</h2>
+      <div class="grid2"><div class="field"><label for="cMobile">Mobile number for SMS</label><input id="cMobile" inputmode="numeric" maxlength="10" value="${esc(bk.contact.mobile)}"></div>
+      <div class="field"><label for="cEmail">Email for e-ticket</label><input id="cEmail" type="email" value="${esc(bk.contact.email)}"></div></div></section>
+    ${av.t==='AVL'?`<section class="panel"><h2 style="font-size:1.25rem">Choose seats</h2><p class="muted">Seats held by another traveller will open up again if they do not pay in time.</p><div id="seatmap">${seatMapHtml(bk)}</div></section>`:''}
+    <section class="panel"><h2 style="font-size:1.25rem">Booking options</h2>
+      <label class="radio" style="margin-bottom:8px"><input type="checkbox" id="oUp" ${bk.opts.up?'checked':''}> <span>Move me to a higher class if free berths open up</span></label>
+      <label class="radio"><input type="checkbox" id="oConf" ${bk.opts.conf?'checked':''}> <span>Book only if every berth is confirmed${av.t!=='AVL'?'. This class is not fully available now.':''}</span></label>
+    </section>
+    <div id="bkErr" class="err" role="alert" style="margin:0"></div>
+    <div><button class="btn yellow" data-a="hold" style="min-width:240px">Hold seats and continue</button></div>
+  </div><div id="sum">${summaryHtml(bk)}</div></div></div>`;
+}
+function paxRow(p,i,berth){
+  return `<div class="pax" data-i="${i}"><div class="field"><label for="pn${i}">Full name</label><input id="pn${i}" data-p="name" value="${esc(p.name)}" autocomplete="off"></div>
+  <div class="field"><label for="pa${i}">Age</label><input id="pa${i}" data-p="age" inputmode="numeric" maxlength="3" value="${esc(p.age)}"></div>
+  <div class="field"><label for="pg${i}">Gender</label><select id="pg${i}" data-p="gender"><option value="">Select</option>${[['M','Male'],['F','Female'],['T','Transgender']].map(g=>`<option value="${g[0]}"${p.gender===g[0]?' selected':''}>${g[1]}</option>`).join('')}</select></div>
+  <div class="field"><label for="pp${i}">Berth preference</label><select id="pp${i}" data-p="pref" ${berth?'':'disabled'}>${['No preference','Lower','Middle','Upper','Side lower','Side upper'].map(x=>`<option${p.pref===x?' selected':''}>${x}</option>`).join('')}</select></div>
+  ${i>0?`<button class="btn danger sm" data-a="rmpax" data-i="${i}" aria-label="Remove passenger ${i+1}">Remove</button>`:'<span></span>'}</div>`;
+}
+function initBooking(no,cls,from,to){
+  const tr=trainBy(no),a=tr.stops.find(s=>s.c===from),z=tr.stops.find(s=>s.c===to);
+  S.bk={no,cls,from,to,date:S.q.date,quota:S.q.quota,dep:a.t,arr:z.t,km:z.km-a.km,pax:[blankPax()],seats:[],contact:{mobile:S.profile.mobile,email:S.profile.email},opts:{up:S.profile.autoUpgrade,conf:false}};
+  const me=S.saved[0];if(me)Object.assign(S.bk.pax[0],{name:me.name,age:me.age,gender:me.gender,pref:me.pref||'No preference'});
+  go('/book');
+}
+function validateBooking(){
+  const bk=S.bk,errs=[];
+  bk.pax.forEach((p,i)=>{if(!/^[A-Za-z][A-Za-z .'-]{2,}$/.test(p.name.trim()))errs.push(`Passenger ${i+1}: enter the full name as on the ID.`);const a=+p.age;if(!(a>=1&&a<=125))errs.push(`Passenger ${i+1}: enter an age between 1 and 125.`);if(!p.gender)errs.push(`Passenger ${i+1}: choose a gender.`)});
+  if(!bk.pax.some(p=>+p.age>=12))errs.push('At least one passenger must be 12 or older.');
+  if(bk.quota==='LD'&&bk.pax.some(p=>p.gender!=='F'&&+p.age>=12))errs.push('Ladies quota allows only women and children below 12.');
+  if(bk.quota==='SS'&&!bk.pax.some(p=>(p.gender==='M'&&+p.age>=60)||(p.gender!=='M'&&+p.age>=58)))errs.push('Senior citizen quota needs a man aged 60+ or a woman aged 58+.');
+  if(!/^[6-9]\d{9}$/.test(bk.contact.mobile))errs.push('Enter a valid 10-digit mobile number.');
+  if(!/^\S+@\S+\.\S+$/.test(bk.contact.email))errs.push('Enter a valid email address.');
+  const av=avail(trainBy(bk.no),bk.cls,bk.date,bk.quota);
+  if(bk.opts.conf&&av.t!=='AVL')errs.push('You asked to book only confirmed berths, but this class is not fully available. Turn that option off or pick another class.');
+  if(av.t==='AVL'&&payers(bk)>av.n)errs.push(`Only ${av.n} seat${av.n>1?'s':''} left in this class. Remove passengers or choose another class.`);
+  return errs;
+}
+async function holdSeats(){
+  const bk=S.bk,tr=trainBy(bk.no),av=avail(tr,bk.cls,bk.date,bk.quota),n=payers(bk),pre=`${bk.no}|${bk.cls}|${bk.date}|`;
+  let keys=[];
+  if(av.t==='AVL'){
+    const {free}=seatInfo(bk);let pick=bk.seats.filter(s=>free.includes(s)&&!heldByOther(pre+s)).slice(0,n);
+    for(const s of free){if(pick.length>=n)break;if(!pick.includes(s)&&!heldByOther(pre+s))pick.push(s)}
+    if(pick.length<n){$('#bkErr').textContent='Not enough free seats right now. Other travellers are holding some. Try again in a minute.';return}
+    bk.seats=pick;keys=pick.map(s=>pre+s);
+  }else keys=Array.from({length:n},(_,i)=>`${pre}${av.t}-slot-${av.n+i}`);
+  openModal(`<h2>Holding your ${av.t==='AVL'?'seats':'place in the queue'}</h2><p class="muted">We ask three lock servers. Two must agree.</p><div class="loglines" id="lockLog" aria-live="polite"></div>`);
+  const L=t=>{const d=document.createElement('div');d.textContent=t;$('#lockLog')?.appendChild(d)};
+  await sleep(350);
+  if(av.t==='AVL'&&Math.random()<.3){tryLock(keys[0],'rival-9',60)}   /* a rival wins the race */
+  const got=[];let fail=null;
+  for(const k of keys){
+    const lbl=k.split('|')[3];L(`Locking ${lbl}…`);await sleep(380);
+    const l=tryLock(k,SESSION,420);
+    if(!l){fail=lbl;break}got.push(l);L(`${lbl} locked on ${l.nodes.join(', ')}, token #${l.token}`);
+  }
+  if(fail){
+    got.forEach(l=>unlock(l.key,SESSION,'ROLLBACK'));
+    if(av.t==='AVL')bk.seats=bk.seats.filter(s=>String(s)!==fail);
+    $('#lockLog').innerHTML+=`<div style="background:var(--red-bg);color:var(--red)">${fail} was just taken by another traveller. We released the rest.</div>`;
+    $('.modal').insertAdjacentHTML('beforeend','<button class="btn" data-a="closemodal" style="margin-top:8px">Choose again</button>');
+    const sm=$('#seatmap');if(sm)sm.innerHTML=seatMapHtml(bk);return;
+  }
+  S.lock={keys,exp:Date.now()+420e3,token:Math.max(...got.map(l=>l.token)),extended:false};
+  await sleep(300);closeModal();go('/pay');
+}
+function releaseOwn(why){if(S.lock){S.lock.keys.forEach(k=>unlock(k,SESSION,why||'RELEASE'));S.lock=null}}
+
+/* payment */
+function viewPay(){
+  const bk=S.bk;if(!bk||!S.lock){go('/results');return ''}
+  const m=S.payMethod,conv=CONV[m];
+  const tab=(k,l)=>`<button role="tab" aria-selected="${m===k}" data-a="paym" data-m="${k}">${l}</button>`;
+  const body={
+    upi:`<div class="field"><label for="upi">UPI ID</label><input id="upi" placeholder="name@bank" autocomplete="off"><div class="hint">We send a collect request to your UPI app. Approve it within 2 minutes.</div></div>`,
+    card:`<div class="grid2"><div class="field" style="grid-column:1/-1"><label for="cn">Card number</label><input id="cn" inputmode="numeric" placeholder="4111 1111 1111 1111" autocomplete="off"></div><div class="field"><label for="ce">Expiry (MM/YY)</label><input id="ce" placeholder="08/29" maxlength="5"></div><div class="field"><label for="cv">CVV</label><input id="cv" inputmode="numeric" maxlength="3" type="password"></div></div><p class="small muted">Card details go straight to the payment gateway. RailYatra never stores them.</p>`,
+    nb:`<div class="bank-list" role="radiogroup" aria-label="Bank">${['State Bank of India','HDFC Bank','ICICI Bank','Axis Bank','Kotak Mahindra','Bank of Baroda'].map((b,i)=>`<label class="radio"><input type="radio" name="bank" value="${b}" ${i===0?'checked':''}> ${b}</label>`).join('')}</div>`,
+    wallet:`<div class="bank-list" role="radiogroup" aria-label="Wallet">${['Paytm Wallet','PhonePe Wallet','Amazon Pay'].map((b,i)=>`<label class="radio"><input type="radio" name="wal" value="${b}" ${i===0?'checked':''}> ${b}</label>`).join('')}</div>`
+  }[m];
+  return `<div class="wrap"><div class="pagehead"><h1>Payment</h1></div>
+  <div class="holdbar" style="margin-bottom:18px"><span>Your seats are held for</span><b id="ttl" data-ttl="${S.lock.exp}">--:--</b><button class="btn yellow sm" data-a="extend" ${S.lock.extended?'disabled':''}>Add 3 minutes</button></div>
+  <div class="cols"><div class="stack"><section class="panel"><h2 style="font-size:1.25rem">Pay with</h2>
+    <div class="tabs" role="tablist">${tab('upi','UPI')}${tab('card','Debit or credit card')}${tab('nb','Net banking')}${tab('wallet','Wallet')}</div>
+    <div id="payBody">${body}</div>
+    <label class="chk" style="margin-top:14px;padding:0"><input type="checkbox" id="failNext" ${S.failNext?'checked':''}> <span class="small">Test mode: make this payment fail</span></label>
+    <div id="payErr" class="err" role="alert" style="margin:8px 0 0"></div>
+    <button class="btn yellow" data-a="pay" style="margin-top:12px;min-width:240px">Pay ${inr(fare(trainBy(bk.no),bk.cls,bk.km,bk.quota).total*payers(bk)+conv)}</button></section>
+    <section class="panel"><h3>Passengers</h3>${bk.pax.map(p=>`<div class="fare-row"><span>${esc(p.name)}, ${esc(p.age)} ${p.gender}</span><span class="muted">${bk.seats.length&&+p.age>=5?'Seat assigned after payment':''}</span></div>`).join('')}</section></div>
+    <div id="sum">${summaryHtml(bk,conv)}</div></div></div>`;
+}
+const luhn=n=>{let s=0,d=false;for(let i=n.length-1;i>=0;i--){let x=+n[i];if(d){x*=2;if(x>9)x-=9}s+=x;d=!d}return s%10===0};
+async function doPay(){
+  const bk=S.bk,m=S.payMethod,err=$('#payErr');err.textContent='';let label;
+  if(m==='upi'){const v=$('#upi').value.trim();if(!/^[\w.\-]{2,}@[A-Za-z]{2,}$/.test(v)){err.textContent='Enter a valid UPI ID, for example name@bank.';return}label='UPI '+v}
+  if(m==='card'){const n=$('#cn').value.replace(/\s/g,''),e=$('#ce').value,c=$('#cv').value;
+    if(!/^\d{13,19}$/.test(n)||!luhn(n)){err.textContent='That card number does not look right. Check each digit.';return}
+    const mm=/^(\d{2})\/(\d{2})$/.exec(e);if(!mm||+mm[1]<1||+mm[1]>12||new Date(2000+ +mm[2],+mm[1],0)<today){err.textContent='Enter a card expiry in the future, as MM/YY.';return}
+    if(!/^\d{3}$/.test(c)){err.textContent='Enter the 3-digit CVV.';return}label='Card ending '+n.slice(-4)}
+  if(m==='nb')label=$('input[name=bank]:checked').value;
+  if(m==='wallet')label=$('input[name=wal]:checked').value;
+  S.failNext=$('#failNext').checked;
+  openModal(`<h2>Processing payment</h2><div class="loglines" id="lockLog" aria-live="polite"></div><p class="small muted">Do not close this page.</p>`);
+  const L=t=>{const d=document.createElement('div');d.textContent=t;$('#lockLog')?.appendChild(d)};
+  /* A real backend sends one idempotency key per attempt so a retry never charges twice. */
+  L('Contacting '+label+'…');await sleep(900);L('Waiting for approval…');await sleep(1100);
+  if(S.failNext){closeModal();err.textContent='The bank declined this payment. You have not been charged. Your seats are still held, so try another method.';return}
+  if(!S.lock||S.lock.exp<Date.now()){closeModal();toast('Your hold ran out before payment finished. Any charge will be refunded.');releaseOwn('EXPIRE');go('/results');return}
+  L('Payment received. Issuing ticket…');await sleep(800);
+  const b=createBooking(label);closeModal();go('/ticket/'+b.pnr+'?new=1');
+}
+function createBooking(label){
+  const bk=S.bk,tr=trainBy(bk.no),av=avail(tr,bk.cls,bk.date,bk.quota),f=fare(tr,bk.cls,bk.km,bk.quota),conv=CONV[S.payMethod];
+  const coach=COACH[bk.cls]+(1+hash(bk.no+bk.date)%4),names=BERTHS[bk.cls];let k=0;
+  const pax=bk.pax.map(p=>{
+    const base={name:p.name.trim(),age:+p.age,gender:p.gender,pref:p.pref};
+    if(+p.age<5)return {...base,book:'No berth',cur:'No berth',coach:'',seat:'',berth:''};
+    const i=k++;
+    if(av.t==='AVL'){const s=bk.seats[i];return {...base,book:'CNF',cur:'CNF',coach,seat:String(s),berth:names[(s-1)%names.length]}}
+    if(av.t==='RAC'){const s=`RAC ${av.n+i}`;return {...base,book:s,cur:s,coach:'',seat:'',berth:''}}
+    const s=`${bk.quota}WL ${av.n+i}`;return {...base,book:s,cur:s,coach:'',seat:'',berth:''};
+  });
+  const b={pnr:pnrGen(),no:bk.no,name:tr.name,from:bk.from,to:bk.to,date:bk.date,dep:bk.dep,arr:bk.arr,km:bk.km,cls:bk.cls,quota:bk.quota,pax,unit:f.total,total:f.total*payers(bk)+conv,fare:f,
+    pay:{method:label,ref:'RYP'+hash(String(Date.now())),at:Date.now()},booked:Date.now(),contact:bk.contact};
+  S.bookings.unshift(b);
+  S.lock.keys.forEach(k=>unlock(k,SESSION,'COMMIT'));S.lock=null;S.bk=null;
+  S.profile.mobile=bk.contact.mobile;S.profile.email=bk.contact.email;
+  notify(b,'booked');saveAll();return b;
+}
+
+/* ticket */
+function qrSvg(seed){
+  const n=25,h=hash(seed);let r=h,cells='';
+  const finder=(x,y)=>x<7&&y<7||x>n-8&&y<7||x<7&&y>n-8;
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    let on;
+    if(finder(x,y)){const lx=x%(n-7),ly=y%(n-7),ex=x<7?x:x-(n-7),ey=y<7?y:y-(n-7);on=ex===0||ex===6||ey===0||ey===6||(ex>=2&&ex<=4&&ey>=2&&ey<=4)}
+    else{r=Math.imul(r^(x*374761393+y*668265263),1274126177)>>>0;on=(r>>>7)%2===0}
+    if(on)cells+=`<rect x="${x}" y="${y}" width="1" height="1"/>`;
+  }
+  return `<svg viewBox="-1 -1 ${n+2} ${n+2}" width="150" height="150" role="img" aria-label="Ticket QR code" shape-rendering="crispEdges"><rect x="-1" y="-1" width="${n+2}" height="${n+2}" fill="#fff"/><g fill="#0F1D3A">${cells}</g></svg>`;
+}
+function viewTicket(pnr,isNew){
+  const b=S.bookings.find(x=>x.pnr===pnr);
+  if(!b)return `<div class="wrap"><div class="panel empty" style="margin-top:30px"><h3>Ticket not found</h3><p>We could not find PNR ${esc(pnr)} in this browser.</p><a class="btn" href="#/trips">See my trips</a></div></div>`;
+  const st=bookingStatus(b);
+  return `<div class="wrap" style="padding-top:26px;padding-bottom:60px">
+    ${isNew?`<div class="okbanner" role="status">Payment received. We sent the e-ticket to ${esc(S.profile.email)} and an SMS to +91 ${esc(S.profile.mobile)}.</div>`:''}
+    <div class="ticket" id="ticket">
+      <div class="tk-head"><div style="font-stretch:118%;font-weight:850;font-size:1.3rem">RailYatra <span style="font-weight:500;font-size:.95rem;opacity:.85">Electronic reservation slip</span></div><div style="font-weight:700">PNR ${b.pnr}</div></div>
+      <div class="tk-body"><div class="tk-main">
+        <div class="tk-route"><div><div class="big">${esc(nameOf(b.from))}</div><div class="muted">${hm(b.dep)}, ${fmtDate(b.date)}</div></div><div class="muted" style="text-align:center">${durTxt(b.arr-b.dep)}<br>${b.km} km</div><div style="text-align:right"><div class="big">${esc(nameOf(b.to))}</div><div class="muted">${hm(b.arr)}${dayOff(b.arr)>dayOff(b.dep)?' (next day)':''}</div></div></div>
+        <div class="tk-kv"><div><span>Train</span><b>${b.no} ${esc(b.name)}</b></div><div><span>Class</span><b>${CLS[b.cls]}</b></div><div><span>Quota</span><b>${QUOTA[b.quota]}</b></div><div><span>Status</span><b>${st}</b></div></div>
+        <div class="tbl-scroll"><table><thead><tr><th>Passenger</th><th>Age, sex</th><th>Booked</th><th>Current</th><th>Coach, seat</th></tr></thead><tbody>${b.pax.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.age}, ${p.gender}</td><td>${p.book}</td><td><b>${p.cur}</b></td><td>${p.coach?`${p.coach}, ${p.seat} ${p.berth}`:'-'}</td></tr>`).join('')}</tbody></table></div>
+        <div class="tk-kv" style="margin-top:16px"><div><span>Fare paid</span><b>${inr(b.total)}</b></div><div><span>Payment</span><b>${esc(b.pay.method)}</b></div><div><span>Transaction</span><b>${b.pay.ref}</b></div><div><span>Booked on</span><b>${fmtDT(b.booked)}</b></div></div>
+        <p class="muted small" style="margin:0">Carry the original photo ID of one passenger. Waitlisted passengers are not allowed to board unless confirmed or in RAC.</p></div>
+      <div class="tk-stub">${qrSvg(b.pnr+b.no)}<div><span class="muted small">PNR</span><div style="font-size:1.2rem;font-weight:800;letter-spacing:.06em">${b.pnr}</div></div><div class="small muted">Show this QR to the ticket checker</div></div></div>
+    </div>
+    <div class="tk-actions"><button class="btn" data-a="pdf" data-pnr="${b.pnr}">Download PDF</button><button class="btn ghost" data-a="resend" data-pnr="${b.pnr}">Email ticket again</button><a class="btn ghost" href="#/pnr/${b.pnr}">PNR status</a><a class="btn ghost" href="#/trips">My trips</a></div>
+    <p class="small muted" style="text-align:center">Choose “Save as PDF” in the print window to download the ticket.</p></div>`;
+}
+
+/* trips */
+function viewTrips(){
+  const list=S.bookings;
+  return `<div class="wrap"><div class="pagehead"><h1>My trips</h1></div>
+  ${list.length?list.map(b=>{const st=bookingStatus(b),past=depDate(b)<Date.now(),rf=S.refunds.filter(r=>r.pnr===b.pnr);
+    return `<article class="trip"><div><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 style="margin:0">${esc(nameOf(b.from))} to ${esc(nameOf(b.to))}</h3><span class="tag ${st==='Confirmed'?'t-avl':st==='Cancelled'?'t-na':st==='RAC'||st==='Partly confirmed'?'t-rac':'t-wl'}">${st}</span></div>
+      <p class="muted" style="margin:4px 0 6px">${fmtDate(b.date)}, ${b.no} ${esc(b.name)}, ${CLS[b.cls]}</p>
+      <div class="small">PNR <b class="num">${b.pnr}</b>. ${b.pax.map(p=>`${esc(p.name.split(' ')[0])}: ${p.cur}`).join(', ')}</div>
+      ${rf.map(r=>`<div class="small" style="margin-top:6px">Refund ${inr(r.amount)}: <span class="tag ${r.status==='Credited'?'t-avl':'t-rac'}">${r.status}</span></div>`).join('')}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-content:start;justify-content:flex-end"><a class="btn sm" href="#/ticket/${b.pnr}">E-ticket</a><a class="btn ghost sm" href="#/pnr/${b.pnr}">PNR status</a>${st!=='Cancelled'&&!past?`<button class="btn danger sm" data-a="cancel" data-pnr="${b.pnr}">Cancel</button>`:''}</div></article>`}).join(''):`<div class="panel empty"><h3>No trips yet</h3><p>Your bookings will show up here.</p><a class="btn" href="#/">Find trains</a></div>`}</div>`;
+}
+function cancelModal(pnr){
+  const b=S.bookings.find(x=>x.pnr===pnr);
+  openModal(`<h2>Cancel passengers</h2><p class="muted">PNR ${b.pnr}, ${esc(nameOf(b.from))} to ${esc(nameOf(b.to))}. Choose who to cancel.</p>
+    <div id="cxList">${b.pax.map((p,i)=>p.cur==='CAN'?'':`<label class="radio" style="margin-bottom:8px"><input type="checkbox" data-cx="${i}" checked> <span><b>${esc(p.name)}</b> (${p.cur})</span></label>`).join('')}</div>
+    <div id="cxSum" class="panel" style="margin:12px 0;background:var(--surface2)"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap"><button class="btn ghost" data-a="closemodal">Keep ticket</button><button class="btn danger" data-a="cxgo" data-pnr="${pnr}">Cancel and refund</button></div>`);
+  cxUpdate(b);
+}
+function cxUpdate(b){
+  const sel=$$('[data-cx]:checked').map(x=>+x.dataset.cx),rs=sel.map(i=>({p:b.pax[i],...refundCalc(b,b.pax[i])}));
+  const tot=rs.reduce((s,r)=>s+r.refund,0);
+  $('#cxSum').innerHTML=sel.length?`${rs.map(r=>`<div class="fare-row"><span>${esc(r.p.name)}<br><small class="muted">${r.rule}</small></span><span class="num">${inr(r.refund)}</span></div>`).join('')}<div class="fare-row total"><span>Refund</span><span class="num">${inr(tot)}</span></div><p class="small muted" style="margin:6px 0 0">Convenience fee is not refunded. Money goes back to ${esc(b.pay.method)}.</p>`:'<span class="muted">Select at least one passenger.</span>';
+  $('[data-a=cxgo]').disabled=!sel.length;
+}
+
+/* PNR */
+function viewPnr(pnr){
+  const b=pnr&&S.bookings.find(x=>x.pnr===pnr);
+  const form=`<form class="panel" id="pnrForm" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end"><div class="field" style="flex:1;min-width:220px"><label for="pnrIn">PNR number</label><input id="pnrIn" inputmode="numeric" maxlength="10" value="${esc(pnr||'')}" placeholder="10 digits"></div><button class="btn" type="submit">Check status</button></form>`;
+  const quick=`<p class="small muted" style="margin-top:10px">Try your own bookings: ${S.bookings.slice(0,4).map(x=>`<a href="#/pnr/${x.pnr}">${x.pnr}</a>`).join(', ')||'none yet'}</p>`;
+  if(!pnr)return `<div class="wrap" style="padding-bottom:60px"><div class="pagehead"><h1>PNR status</h1></div>${form}${quick}</div>`;
+  if(!b)return `<div class="wrap" style="padding-bottom:60px"><div class="pagehead"><h1>PNR status</h1></div>${form}<div class="panel empty" style="margin-top:16px"><h3>PNR not found</h3><p>Check the 10 digits and try again. This prototype only knows bookings made in this browser.</p></div>${quick}</div>`;
+  const hrs=(depDate(b)-Date.now())/36e5,charted=hrs<4,st=bookingStatus(b);
+  return `<div class="wrap" style="padding-bottom:60px"><div class="pagehead"><h1>PNR ${b.pnr}</h1></div>${form}
+  <div class="cols" style="margin-top:20px"><div class="stack"><section class="panel"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">${b.no} ${esc(b.name)}</h3><p class="muted" style="margin:2px 0 0">${esc(nameOf(b.from))} ${hm(b.dep)} to ${esc(nameOf(b.to))} ${hm(b.arr)}, ${fmtDate(b.date)}</p></div><span class="tag ${st==='Confirmed'?'t-avl':st==='Cancelled'?'t-na':'t-rac'}" style="align-self:start">${st}</span></div>
+    <div class="tbl-scroll" style="margin-top:12px"><table><thead><tr><th>Passenger</th><th>Booked</th><th>Current status</th><th>Chance</th></tr></thead><tbody>${b.pax.map((p,i)=>{const w=/WL (\d+)/.exec(p.cur),r=/RAC (\d+)/.exec(p.cur);const ch=w?chance({t:'WL',n:+w[1]}):r?chance({t:'RAC',n:+r[1]}):null;return `<tr><td>${esc(p.name)}</td><td>${p.book}</td><td><b>${p.cur}</b>${p.coach?`<br><small class="muted">${p.coach}, ${p.seat} ${p.berth}</small>`:''}</td><td>${ch!==null?`${ch}%<div class="meter" style="margin-top:4px"><i style="width:${ch}%"></i></div>`:'-'}</td></tr>`}).join('')}</tbody></table></div></section>
+    <section class="panel"><h3>Journey progress</h3><ul class="timeline"><li class="done">Booked on ${fmtDT(b.booked)}</li><li class="${charted?'done':'now'}">Chart preparation, about 4 hours before departure${charted?'':`. In ${durTxt(Math.max(0,Math.round((hrs-4)*60)))}`}</li><li class="${hrs<0?'done':''}">Departure ${hm(b.dep)}, ${fmtDate(b.date)}</li><li>Arrival ${hm(b.arr)}</li></ul>
+    <p class="small muted">Waitlisted passengers are told by SMS and email when their status changes.</p></section></div>
+    <div class="panel sticky"><h3>Actions</h3><div class="stack"><a class="btn" href="#/ticket/${b.pnr}">View e-ticket</a><button class="btn ghost" data-a="resend" data-pnr="${b.pnr}">Send status by SMS</button></div></div></div></div>`;
+}
+
+/* profile */
+function viewProfile(){
+  const p=S.profile;
+  return `<div class="wrap" style="padding-bottom:60px"><div class="pagehead"><h1>Profile</h1></div>
+  <div class="cols"><div class="stack">
+  <form class="panel" id="profForm"><h2 style="font-size:1.25rem">Your details</h2><div class="grid2">
+    <div class="field"><label for="pfN">Full name</label><input id="pfN" value="${esc(p.name)}"></div>
+    <div class="field"><label for="pfM">Mobile</label><input id="pfM" inputmode="numeric" maxlength="10" value="${esc(p.mobile)}"></div>
+    <div class="field"><label for="pfE">Email</label><input id="pfE" type="email" value="${esc(p.email)}"></div>
+    <div class="field"><label for="pfB">Preferred berth</label><select id="pfB">${['No preference','Lower','Middle','Upper','Side lower','Side upper'].map(x=>`<option${p.berth===x?' selected':''}>${x}</option>`).join('')}</select></div>
+    <div class="field"><label for="pfI">ID type</label><select id="pfI">${['Aadhaar','Passport','Voter ID','Driving licence'].map(x=>`<option${p.idType===x?' selected':''}>${x}</option>`).join('')}</select></div>
+    <div class="field"><label for="pfL">Last 4 digits of ID</label><input id="pfL" inputmode="numeric" maxlength="4" value="${esc(p.idLast4)}"><div class="hint">We store only the last 4 digits.</div></div></div>
+    <h3 style="margin-top:18px">Notifications</h3>
+    <label class="radio" style="margin-bottom:8px"><input type="checkbox" id="pfS" ${p.notifySms?'checked':''}> SMS for booking, status changes and refunds</label>
+    <label class="radio" style="margin-bottom:8px"><input type="checkbox" id="pfEm" ${p.notifyEmail?'checked':''}> Email with e-ticket PDF and receipts</label>
+    <label class="radio"><input type="checkbox" id="pfU" ${p.autoUpgrade?'checked':''}> Offer higher class when free berths open up</label>
+    <div id="pfErr" class="err" role="alert"></div><button class="btn" type="submit">Save changes</button></form>
+  <section class="panel"><h2 style="font-size:1.25rem">Saved passengers</h2>
+    ${S.saved.length?`<div class="tbl-scroll"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Berth</th><th></th></tr></thead><tbody>${S.saved.map((s,i)=>`<tr><td>${esc(s.name)}</td><td>${s.age}</td><td>${s.gender}</td><td>${esc(s.pref)}</td><td><button class="btn danger sm" data-a="rmsaved" data-i="${i}">Remove</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">No saved passengers yet. Add the people you travel with often.</p>'}
+    <form id="savedForm" class="grid2" style="margin-top:14px;align-items:end"><div class="field"><label for="svN">Full name</label><input id="svN"></div><div class="field"><label for="svA">Age</label><input id="svA" inputmode="numeric" maxlength="3"></div><div class="field"><label for="svG">Gender</label><select id="svG"><option value="M">Male</option><option value="F">Female</option><option value="T">Transgender</option></select></div><div><button class="btn ghost" type="submit">Add passenger</button></div><div id="svErr" class="err" role="alert" style="grid-column:1/-1;margin:0"></div></form></section></div>
+  <div class="panel sticky"><h3>${esc(p.name)}</h3><p class="muted small">${esc(p.email)}<br>+91 ${esc(p.mobile)}</p><span class="tag t-avl">${esc(p.idType)} ending ${esc(p.idLast4)}</span></div></div></div>`;
+}
+
+/* ---------- admin ---------- */
+function viewAdmin(){
+  const tabs=[['overview','Overview'],['schedule','Train schedule'],['quota','Quotas'],['refunds','Refunds'],['locks','Seat locks'],['bookings','Bookings']];
+  return `<div class="wrap" style="padding-bottom:60px"><div class="pagehead"><h1>Operations console</h1><p class="muted">Staff view. Figures mix sample data with bookings made in this browser.</p></div>
+  <div class="adm-tabs" role="tablist">${tabs.map(t=>`<button role="tab" aria-selected="${S.adminTab===t[0]}" data-a="atab" data-t="${t[0]}">${t[1]}</button>`).join('')}</div><div id="admBody">${adminBody()}</div></div>`;
+}
+function adminBody(){return {overview:admOverview,schedule:admSchedule,quota:admQuota,refunds:admRefunds,locks:admLocks,bookings:admBookings}[S.adminTab]()}
+function admOverview(){
+  const rev=S.bookings.reduce((s,b)=>s+(b.pax.every(p=>p.cur==='CAN')?0:b.total),0),pend=S.refunds.filter(r=>r.status!=='Credited').length;
+  const days=Array.from({length:14},(_,i)=>3200+hash('rev'+i)%2800),mx=Math.max(...days);
+  return `<div class="kpis"><div><b>${(1284+S.bookings.length).toLocaleString('en-IN')}</b><span class="muted small">Bookings today</span></div><div><b>${inr(482000+rev)}</b><span class="muted small">Revenue today</span></div><div><b>${pend}</b><span class="muted small">Refunds to process</span></div><div><b>${S.locks.length}</b><span class="muted small">Active seat locks</span></div></div>
+  <div class="cols" style="grid-template-columns:1.4fr 1fr;padding-bottom:0"><div><h3>Departures</h3><div class="dep-board tbl-scroll"><table><thead><tr><th>Train</th><th>From</th><th>Departs</th><th>Pf</th><th>Status</th></tr></thead><tbody>${TRAINS.slice(0,9).sort((a,b)=>a.stops[0].t%1440-b.stops[0].t%1440).map(t=>`<tr><td>${t.no} ${esc(t.name)}</td><td>${t.stops[0].c}</td><td>${hm(t.stops[0].t+t.delay)}</td><td>${t.platform}</td><td>${t.status}${t.delay?` +${t.delay}m`:''}</td></tr>`).join('')}</tbody></table></div></div>
+  <div><h3>Revenue, last 14 days</h3><svg viewBox="0 0 280 120" width="100%" role="img" aria-label="Revenue bars for the last 14 days">${days.map((v,i)=>`<rect x="${i*20+2}" y="${116-v/mx*104}" width="15" height="${v/mx*104}" fill="var(--blue)" rx="2"/>`).join('')}</svg>
+  <h3 style="margin-top:18px">Seats sold by class</h3>${Object.keys(CLS).map(c=>{const v=40+hash('occ'+c)%55;return `<div class="bar-h"><span>${c}</span><div class="meter"><i style="width:${v}%;background:var(--blue)"></i></div><span class="num small">${v}%</span></div>`}).join('')}</div></div>`;
+}
+function admSchedule(){
+  return `<div class="panel flat" style="padding:0"><div class="tbl-scroll"><table><thead><tr><th>Train</th><th>Route</th><th>Departs</th><th>Runs on</th><th>Status</th><th>Delay (min)</th><th></th></tr></thead><tbody>${TRAINS.map(t=>`<tr data-tr="${t.no}"><td><b>${t.no}</b><br>${esc(t.name)}</td><td>${t.stops[0].c} to ${t.stops[t.stops.length-1].c}</td><td><input type="time" data-s="time" value="${hm(t.stops[0].t)}" aria-label="Departure ${t.no}" style="width:110px" class="inp"></td>
+    <td><div class="runs">${DAYL.map((d,i)=>`<label style="cursor:pointer"><input type="checkbox" class="sr" data-s="day" data-d="${i}" ${t.days[i]?'checked':''}><span class="${t.days[i]?'on':''}" style="width:26px;height:26px">${d}</span></label>`).join('')}</div></td>
+    <td><select data-s="status" class="inp" style="width:130px">${['Running','Delayed','Rescheduled','Cancelled'].map(s=>`<option${t.status===s?' selected':''}>${s}</option>`).join('')}</select></td><td><input type="number" min="0" max="600" data-s="delay" value="${t.delay}" class="inp" style="width:84px"></td><td><button class="btn sm" data-a="savetr" data-no="${t.no}">Save</button></td></tr>`).join('')}</tbody></table></div></div>
+  <details class="panel" style="margin-top:18px"><summary style="cursor:pointer;font-weight:800">Add a train</summary><form id="addTrain" class="grid3" style="margin-top:14px;align-items:end">
+    <div class="field"><label for="atNo">Train number</label><input id="atNo" maxlength="5" inputmode="numeric"></div><div class="field"><label for="atName">Train name</label><input id="atName"></div>
+    <div class="field"><label for="atType">Type</label><select id="atType">${['Express','Superfast','Mail','Intercity','Rajdhani','Shatabdi'].map(x=>`<option>${x}</option>`).join('')}</select></div>
+    <div class="field"><label for="atFrom">From</label><select id="atFrom">${Object.entries(ST).map(([c,[n]])=>`<option value="${c}">${n}</option>`).join('')}</select></div><div class="field"><label for="atTo">To</label><select id="atTo">${Object.entries(ST).map(([c,[n]],i)=>`<option value="${c}"${i===8?' selected':''}>${n}</option>`).join('')}</select></div>
+    <div class="field"><label for="atDep">Departs</label><input id="atDep" type="time" value="08:00"></div><div class="field"><label for="atKm">Distance (km)</label><input id="atKm" type="number" min="20" value="400"></div><div class="field"><label for="atHr">Journey (hours)</label><input id="atHr" type="number" min="1" step=".5" value="8"></div>
+    <div class="field"><label for="atCls">Classes</label><select id="atCls" multiple size="4">${Object.keys(CLS).map(c=>`<option value="${c}"${['SL','3A'].includes(c)?' selected':''}>${CLS[c]}</option>`).join('')}</select></div>
+    <div id="atErr" class="err" style="grid-column:1/-1;margin:0" role="alert"></div><div><button class="btn" type="submit">Add train</button></div></form></details>`;
+}
+function admQuota(){
+  const no=S.quotaTrain||TRAINS[0].no,tr=trainBy(no),q=S.quota[no]||{};
+  return `<div class="field" style="max-width:360px;margin-bottom:16px"><label for="qTrain">Train</label><select id="qTrain">${TRAINS.map(t=>`<option value="${t.no}"${t.no===no?' selected':''}>${t.no} ${esc(t.name)} (${t.stops[0].c} to ${t.stops[t.stops.length-1].c})</option>`).join('')}</select></div>
+  <div class="panel flat" style="padding:0"><div class="tbl-scroll"><table><thead><tr><th>Class</th><th>Coaches</th>${Object.entries(QUOTA).map(([c,n])=>`<th>${n}</th>`).join('')}<th>Total</th></tr></thead><tbody>${tr.classes.map(c=>{const tot=SEATS[c]*(c==='2S'||c==='SL'?5:3);const def={GN:Math.round(tot*.62),TQ:Math.round(tot*.3*.7),PT:Math.round(tot*.3*.3)};def.LD=Math.round(tot*.04);def.SS=Math.round(tot*.04);def.DF=Math.round(tot*.01);def.HP=tot-Object.values(def).reduce((a,b)=>a+b,0);const v=q[c]||def;
+    return `<tr data-qc="${c}"><td><b>${c}</b></td><td>${tot/SEATS[c]}</td>${Object.keys(QUOTA).map(k=>`<td><input class="inp" type="number" min="0" data-q="${k}" value="${v[k]??0}" style="width:76px"></td>`).join('')}<td class="num"><b>${Object.values(v).reduce((a,b)=>a+(+b||0),0)}</b></td></tr>`}).join('')}</tbody></table></div></div>
+  <p class="small muted" style="margin-top:10px">Quotas are released to General at chart preparation, Tatkal opens a day before travel at 10:00 (AC) and 11:00 (non-AC).</p><button class="btn" data-a="saveq" style="margin-top:6px">Save allocation</button>`;
+}
+function admRefunds(){
+  return S.refunds.length?`<div class="panel flat" style="padding:0"><div class="tbl-scroll"><table><thead><tr><th>Refund</th><th>PNR</th><th>Passengers</th><th>Amount</th><th>Requested</th><th>Status</th><th></th></tr></thead><tbody>${S.refunds.map((r,i)=>`<tr><td>${r.id}</td><td>${r.pnr}</td><td>${esc(r.names)}</td><td class="num">${inr(r.amount)}</td><td>${fmtDT(r.t)}</td><td><span class="tag ${r.status==='Credited'?'t-avl':'t-rac'}">${r.status}</span></td><td>${r.status==='Credited'?'':`<button class="btn sm" data-a="payref" data-i="${i}">${r.status==='Initiated'?'Send to bank':'Mark credited'}</button>`}</td></tr>`).join('')}</tbody></table></div></div>`:`<div class="panel empty"><h3>No refunds waiting</h3><p>Cancel a ticket from My trips to see it appear here.</p></div>`;
+}
+function admLocks(){
+  purgeLocks();
+  return `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px"><button class="btn" data-a="rival">Simulate a rival lock</button><button class="btn ghost" data-a="rrel">Release all rival locks</button></div>
+  <div class="panel flat" style="padding:0;margin-bottom:18px"><div class="tbl-scroll"><table><thead><tr><th>Resource</th><th>Owner</th><th>Lock servers</th><th>Fencing token</th><th>Expires in</th><th></th></tr></thead><tbody>${S.locks.length?S.locks.map((l,i)=>`<tr><td>${l.key.split('|').join(' / ')}</td><td>${l.owner===SESSION?'This browser':l.owner}</td><td>${l.nodes.length}/3 (${l.nodes.join(', ')})</td><td class="num">#${l.token}</td><td class="num" data-ttl="${l.exp}">--</td><td><button class="btn danger sm" data-a="forcerel" data-i="${i}">Release</button></td></tr>`).join(''):'<tr><td colspan="6" class="muted">No active locks. Start a booking to see one.</td></tr>'}</tbody></table></div></div>
+  <h3>Lock log</h3><div class="panel flat" style="padding:0"><div class="tbl-scroll"><table><thead><tr><th>Time</th><th>Event</th><th>Resource</th><th>Owner</th><th>Note</th></tr></thead><tbody>${S.ledger.slice(0,14).map(e=>`<tr><td>${new Date(e.t).toLocaleTimeString('en-IN')}</td><td><span class="tag ${e.type==='CONFLICT'||e.type==='ROLLBACK'?'t-wl':e.type==='COMMIT'||e.type==='ACQUIRE'?'t-avl':'t-na'}">${e.type}</span></td><td>${e.key.split('|').slice(0,4).join(' / ')}</td><td>${e.owner}</td><td>${e.note}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">Nothing yet.</td></tr>'}</tbody></table></div></div>
+  <details class="panel" style="margin-top:18px"><summary style="cursor:pointer;font-weight:800">How this works in production</summary>
+  <ol style="max-width:70ch"><li>Each seat is a resource key: train, class, date, seat.</li><li>Acquire it with a random owner id and a 7-minute lease on 3 independent lock servers (Redis or etcd). Two of three must agree.</li><li>Every lock returns a fencing token that only goes up. The database rejects writes carrying an older token.</li><li>The final guard is a unique constraint on the seat in the booking table, so a stale lock can never double-sell a seat.</li><li>Payment callbacks carry an idempotency key, so a retry never books twice. Expired locks are released by a sweeper job.</li></ol></details>`;
+}
+function admBookings(){
+  return `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center"><button class="btn" data-a="chart">Run chart and waitlist movement</button><span class="small muted">Moves waitlisted passengers forward and sends SMS and email for every change.</span></div>
+  <div class="panel flat" style="padding:0"><div class="tbl-scroll"><table><thead><tr><th>PNR</th><th>Train</th><th>Date</th><th>Passengers</th><th>Amount</th><th>Status</th></tr></thead><tbody>${S.bookings.map(b=>`<tr><td><a href="#/pnr/${b.pnr}">${b.pnr}</a></td><td>${b.no} ${esc(b.name)}</td><td>${fmtDate(b.date)}</td><td>${b.pax.map(p=>`${esc(p.name.split(' ')[0])} ${p.cur}`).join(', ')}</td><td class="num">${inr(b.total)}</td><td>${bookingStatus(b)}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function runCharting(){
+  let moved=0;
+  S.bookings.forEach(b=>{if(bookingStatus(b)==='Cancelled'||depDate(b)<Date.now())return;let ch=false;
+    b.pax.forEach(p=>{
+      const w=/WL (\d+)/.exec(p.cur),r=/RAC (\d+)/.exec(p.cur);
+      if(w){const n=Math.max(0,+w[1]-(8+hash(b.pnr+p.name)%12));p.cur=n<=2?`RAC ${1+n}`:`${b.quota}WL ${n}`;ch=true}
+      else if(r){p.cur='CNF';p.coach=COACH[b.cls]+'1';p.seat=String(1+hash(b.pnr+p.name)%48);p.berth='LB';ch=true}
+    });
+    if(ch){moved++;notify(b,'move')}});
+  toast(moved?`${moved} booking${moved>1?'s':''} updated and notified.`:'No waitlisted bookings to move.');saveAll();
+}
+
+/* ---------- messages drawer ---------- */
+function openDrawer(){
+  closeDrawer();S.seenOutbox=S.outbox.length;store.set('seen',S.seenOutbox);updateBadge();
+  const s=document.createElement('div');s.className='scrim';s.dataset.a='closedrawer';
+  const d=document.createElement('aside');d.className='drawer';d.setAttribute('role','dialog');d.setAttribute('aria-label','Messages sent to you');
+  d.innerHTML=`<div class="drawer-h"><h3 style="margin:0">Messages sent</h3><button class="btn ghost sm" data-a="closedrawer">Close</button></div><div class="drawer-b">${S.outbox.length?S.outbox.map(m=>m.ch==='email'?`<div class="mail"><div class="mail-h">Email to ${esc(m.to)}<br><b style="color:var(--text)">${esc(m.subject)}</b></div><div class="mail-b">${esc(m.body)}</div></div>`:`<div><div class="sms">${esc(m.body)}</div><div class="sms-t">SMS to ${esc(m.to)}, ${fmtDT(m.t)}</div></div>`).join(''):'<div class="empty">Booking confirmations, status changes and refund updates appear here, as the email and SMS your customers get.</div>'}</div>`;
+  document.body.append(s,d);S.drawer=[s,d];d.querySelector('button').focus();
+}
+function closeDrawer(){if(S.drawer){S.drawer.forEach(x=>x.remove());S.drawer=null}}
+
+/* ---------- router ---------- */
+function render(){
+  closeModal();
+  const raw=location.hash.replace(/^#/,'')||'/',[path,qs]=raw.split('?'),seg=path.split('/').filter(Boolean),r=seg[0]||'home',main=$('#main');
+  let html='',title='RailYatra: train tickets, PNR status and refunds',nav=r;
+  if(r!=='pay'&&S.lock){releaseOwn('RELEASE')}                 /* leaving the payment page frees the hold */
+  switch(r){
+    case 'home':html=viewHome();break;
+    case 'results':html=viewResults();title='Trains, RailYatra';nav='home';break;
+    case 'book':html=viewBook();title='Passenger details, RailYatra';nav='home';break;
+    case 'pay':html=viewPay();title='Payment, RailYatra';nav='home';break;
+    case 'ticket':html=viewTicket(seg[1],qs==='new=1');title='E-ticket '+(seg[1]||'')+', RailYatra';nav='trips';break;
+    case 'trips':html=viewTrips();title='My trips, RailYatra';break;
+    case 'pnr':html=viewPnr(seg[1]);title='PNR status, RailYatra';break;
+    case 'profile':html=viewProfile();title='Profile, RailYatra';break;
+    case 'admin':html=viewAdmin();title='Operations console, RailYatra';break;
+    default:html=viewHome();nav='home';
+  }
+  main.innerHTML=html;document.title=title;
+  $$('[data-nav]').forEach(a=>a.removeAttribute('aria-current'));$(`[data-nav="${nav==='home'?'home':nav}"]`)?.setAttribute('aria-current','page');
+  window.scrollTo(0,0);tick();
+}
+function tick(){
+  purgeLocks();
+  $$('[data-ttl]').forEach(el=>{const s=Math.max(0,Math.round((+el.dataset.ttl-Date.now())/1000));el.textContent=Math.floor(s/60)+':'+pad(s%60)});
+  if(S.lock&&location.hash.startsWith('#/pay')&&S.lock.exp<=Date.now()){releaseOwn('EXPIRE');toast('Your hold ran out and the seats went back on sale. Search again to rebook.');go('/results')}
+  if(S.adminTab==='locks'&&location.hash.startsWith('#/admin')&&!S._lockSig)S._lockSig=1;
+}
+setInterval(()=>{tick();if(location.hash.startsWith('#/admin')&&S.adminTab==='locks'&&document.activeElement===document.body){const b=$('#admBody');if(b&&S.locks.length!==S._lc){S._lc=S.locks.length;b.innerHTML=adminBody()}}},1000);
+
+/* ---------- events ---------- */
+function readSearch(){
+  const f=parseSt($('#qFrom').value),t=parseSt($('#qTo').value),d=$('#qDate').value,err=$('#qErr');
+  if(!f){err.textContent='Choose a From station from the list.';return false}
+  if(!t){err.textContent='Choose a To station from the list.';return false}
+  if(f===t){err.textContent='From and To must be different stations.';return false}
+  if(!d||d<iso(today)){err.textContent='Choose today or a later date.';return false}
+  const cls=$('#qCls').value;if(cls!==S.q.cls)S.f.cls=[];
+  Object.assign(S.q,{from:f,to:t,date:d,cls,quota:$('#qQuota').value,near:$('#qNear').checked});S.pick=null;S.openSched=null;return true;
+}
+document.addEventListener('submit',e=>{
+  e.preventDefault();const id=e.target.id;
+  if(id==='searchForm'){if(readSearch())go('/results')}
+  if(id==='pnrQuick'){const v=$('#pnrQ').value.trim();go('/pnr/'+v)}
+  if(id==='pnrForm'){go('/pnr/'+$('#pnrIn').value.trim())}
+  if(id==='profForm'){
+    const m=$('#pfM').value,em=$('#pfE').value,n=$('#pfN').value.trim(),er=$('#pfErr');
+    if(n.length<3){er.textContent='Enter your full name.';return}if(!/^[6-9]\d{9}$/.test(m)){er.textContent='Enter a valid 10-digit mobile number.';return}if(!/^\S+@\S+\.\S+$/.test(em)){er.textContent='Enter a valid email address.';return}
+    Object.assign(S.profile,{name:n,mobile:m,email:em,berth:$('#pfB').value,idType:$('#pfI').value,idLast4:$('#pfL').value.replace(/\D/g,'').slice(0,4),notifySms:$('#pfS').checked,notifyEmail:$('#pfEm').checked,autoUpgrade:$('#pfU').checked});
+    saveAll();toast('Profile saved');render();
+  }
+  if(id==='savedForm'){
+    const n=$('#svN').value.trim(),a=+$('#svA').value,er=$('#svErr');
+    if(n.length<3||!(a>=1&&a<=125)){er.textContent='Enter a full name and an age between 1 and 125.';return}
+    S.saved.push({name:n,age:a,gender:$('#svG').value,pref:'No preference'});saveAll();toast('Passenger saved');render();
+  }
+  if(id==='addTrain'){
+    const no=$('#atNo').value.trim(),er=$('#atErr'),f=$('#atFrom').value,t=$('#atTo').value,cls=[...$('#atCls').selectedOptions].map(o=>o.value);
+    if(!/^\d{5}$/.test(no)){er.textContent='Train number must be 5 digits.';return}if(trainBy(no)){er.textContent='That train number already exists.';return}
+    if($('#atName').value.trim().length<3){er.textContent='Enter the train name.';return}if(f===t){er.textContent='From and To must differ.';return}if(!cls.length){er.textContent='Choose at least one class.';return}
+    const [h,m]=$('#atDep').value.split(':').map(Number),km=+$('#atKm').value,hrs=+$('#atHr').value;
+    TRAINS.push(mk(no,$('#atName').value.trim(),$('#atType').value,cls,[[f,T(h,m),0],[t,T(h,m)+Math.round(hrs*60),km]]));
+    toast('Train '+no+' added');render();
+  }
+});
+document.addEventListener('input',e=>{
+  const el=e.target;
+  if(el.dataset.p!==undefined&&S.bk){const i=+el.closest('.pax').dataset.i;S.bk.pax[i][el.dataset.p]=el.value;if(el.dataset.p==='age'){$('#sum').innerHTML=summaryHtml(S.bk,S.lock?CONV[S.payMethod]:0);const sm=$('#seatmap');if(sm)sm.innerHTML=seatMapHtml(S.bk)}}
+  if(el.id==='cMobile'&&S.bk)S.bk.contact.mobile=el.value.replace(/\D/g,'');
+  if(el.id==='cEmail'&&S.bk)S.bk.contact.email=el.value;
+  if(el.id==='fFare'){S.f.maxFare=+el.value;$('#fareOut').textContent=inr(S.f.maxFare);$('#list').innerHTML=listHtml()}
+  if(el.id==='cn')el.value=el.value.replace(/\D/g,'').slice(0,19).replace(/(.{4})/g,'$1 ').trim();
+  if(el.id==='ce'){let v=el.value.replace(/\D/g,'').slice(0,4);if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2);el.value=v}
+  if(el.id==='pnrQ'||el.id==='pnrIn')el.value=el.value.replace(/\D/g,'');
+  if(el.dataset.q!==undefined){const tr=el.closest('tr');tr.querySelector('td:last-child b').textContent=$$('[data-q]',tr).reduce((a,x)=>a+(+x.value||0),0)}
+});
+document.addEventListener('change',e=>{
+  const el=e.target;
+  if(el.dataset.filter){const g=el.dataset.filter,v=el.value,a=S.f[g];S.f[g]=el.checked?[...a,v]:a.filter(x=>x!==v);$('#list').innerHTML=listHtml()}
+  if(el.id==='fSort'){S.f.sort=el.value;$('#list').innerHTML=listHtml()}
+  if(el.id==='fAvail'){S.f.avail=el.checked;$('#list').innerHTML=listHtml()}
+  if(el.id==='fPantry'){S.f.pantry=el.checked;$('#list').innerHTML=listHtml()}
+  if(el.id==='oUp'&&S.bk)S.bk.opts.up=el.checked;
+  if(el.id==='oConf'&&S.bk)S.bk.opts.conf=el.checked;
+  if(el.id==='failNext')S.failNext=el.checked;
+  if(el.dataset.cx!==undefined){const b=S.bookings.find(x=>x.pnr===$('[data-a=cxgo]').dataset.pnr);cxUpdate(b)}
+  if(el.id==='qTrain'){S.quotaTrain=el.value;$('#admBody').innerHTML=adminBody()}
+  if(el.dataset.s==='day'){el.nextElementSibling.classList.toggle('on',el.checked)}
+});
+const A={
+  swap(){const a=$('#qFrom').value;$('#qFrom').value=$('#qTo').value;$('#qTo').value=a},
+  route(el){Object.assign(S.q,{from:el.dataset.f,to:el.dataset.t,near:true});go('/results')},
+  setdate(el){S.q.date=el.dataset.d;S.pick=null;render()},
+  clearf(){S.f={types:[],dep:[],arr:[],cls:[],avail:false,pantry:false,maxFare:20000,sort:'dep'};S.q.cls='ANY';render()},
+  pick(el){const same=S.pick&&S.pick.no===el.dataset.no&&S.pick.cls===el.dataset.cls;S.pick=same?null:{no:el.dataset.no,cls:el.dataset.cls};$('#list').innerHTML=listHtml()},
+  sched(el){S.openSched=S.openSched===el.dataset.no?null:el.dataset.no;$('#list').innerHTML=listHtml()},
+  book(el){initBooking(el.dataset.no,el.dataset.cls,el.dataset.from,el.dataset.to)},
+  back(){go('/results')},
+  addpax(){if(S.bk.pax.length<6){S.bk.pax.push(blankPax());render()}},
+  rmpax(el){S.bk.pax.splice(+el.dataset.i,1);render()},
+  addsaved(el){const s=S.saved.find(x=>x.name===el.dataset.name);if(!s)return;const empty=S.bk.pax.findIndex(p=>!p.name.trim());const np={name:s.name,age:s.age,gender:s.gender,pref:s.pref||'No preference'};if(empty>=0)S.bk.pax[empty]=np;else if(S.bk.pax.length<6)S.bk.pax.push(np);render()},
+  seat(el){
+    const n=+el.dataset.n;if(el.getAttribute('aria-disabled')==='true'){toast(el.classList.contains('held')?'Another traveller is holding that seat. It may free up in a few minutes.':'That seat is already booked.');return}
+    const bk=S.bk,i=bk.seats.indexOf(n);if(i>=0)bk.seats.splice(i,1);else{if(bk.seats.length>=payers(bk)){toast('You selected a seat for every passenger. Remove one first.');return}bk.seats.push(n)}
+    $('#seatmap').innerHTML=seatMapHtml(bk);
+  },
+  hold(){const er=validateBooking();$('#bkErr').innerHTML=er.map(esc).join('<br>');if(er.length){$('#bkErr').scrollIntoView({block:'center'});return}holdSeats()},
+  closemodal(){closeModal()},
+  paym(el){S.payMethod=el.dataset.m;render()},
+  extend(){if(S.lock&&!S.lock.extended){S.lock.keys.forEach(k=>{const l=S.locks.find(x=>x.key===k&&x.owner===SESSION);if(l){l.exp+=180e3;logL('EXTEND',l,'+3 min')}});S.lock.exp+=180e3;S.lock.extended=true;render()}},
+  pay(){doPay()},
+  pdf(el){const old=document.title;document.title='RailYatra-E-ticket-'+el.dataset.pnr;window.print();setTimeout(()=>document.title=old,500)},
+  resend(el){const b=S.bookings.find(x=>x.pnr===el.dataset.pnr);notify(b,'resend');toast('E-ticket sent to '+S.profile.email);},
+  cancel(el){cancelModal(el.dataset.pnr)},
+  cxgo(el){
+    const b=S.bookings.find(x=>x.pnr===el.dataset.pnr),sel=$$('[data-cx]:checked').map(x=>+x.dataset.cx);if(!sel.length)return;
+    let tot=0;sel.forEach(i=>{tot+=refundCalc(b,b.pax[i]).refund;b.pax[i].cur='CAN'});
+    S.refunds.unshift({id:'RF'+(hash(b.pnr+Date.now())%900000+100000),pnr:b.pnr,names:sel.map(i=>b.pax[i].name).join(', '),amount:tot,status:'Initiated',t:Date.now(),method:b.pay.method});
+    notify(b,'cancel',tot);saveAll();closeModal();toast(`Cancelled. Refund of ${inr(tot)} initiated.`);render();
+  },
+  drawer(){openDrawer()},closedrawer(){closeDrawer()},
+  rmsaved(el){S.saved.splice(+el.dataset.i,1);saveAll();render()},
+  atab(el){S.adminTab=el.dataset.t;S._lc=-1;render()},
+  savetr(el){
+    const tr=trainBy(el.dataset.no),row=el.closest('tr'),[h,m]=$('[data-s=time]',row).value.split(':').map(Number),delta=T(h,m)-tr.stops[0].t;
+    tr.stops.forEach(s=>s.t+=delta);tr.days=$$('[data-s=day]',row).map(x=>x.checked?1:0);tr.status=$('[data-s=status]',row).value;tr.delay=+$('[data-s=delay]',row).value||0;
+    if(tr.status==='Delayed'&&!tr.delay)tr.delay=15;
+    toast(`Train ${tr.no} updated. Booked passengers will get an SMS.`);render();
+  },
+  saveq(){const no=S.quotaTrain||TRAINS[0].no;S.quota[no]={};$$('[data-qc]').forEach(r=>{S.quota[no][r.dataset.qc]={};$$('[data-q]',r).forEach(i=>S.quota[no][r.dataset.qc][i.dataset.q]=+i.value||0)});
+    Object.keys(S.quota[no]).forEach(c=>{});toast('Quota allocation saved')},
+  payref(el){const r=S.refunds[+el.dataset.i],b=S.bookings.find(x=>x.pnr===r.pnr);
+    if(r.status==='Initiated'){r.status='Processing';toast('Refund sent to the bank')}else{r.status='Credited';if(b)notify(b,'refund',r.amount);toast('Refund marked as credited. Customer notified.')}
+    saveAll();$('#admBody').innerHTML=adminBody()},
+  rival(){const tr=TRAINS[Math.floor(Math.random()*4)],c=tr.classes[0],d=iso(addDays(today,3+Math.floor(Math.random()*5))),s=1+Math.floor(Math.random()*40);
+    if(tryLock(`${tr.no}|${c}|${d}|${s}`,'rival-'+(1+Math.floor(Math.random()*8)),120))toast('Rival lock created for 2 minutes');S._lc=-1;$('#admBody').innerHTML=adminBody()},
+  rrel(){S.locks.filter(l=>l.owner!==SESSION).forEach(l=>unlock(l.key,l.owner,'RELEASE'));$('#admBody').innerHTML=adminBody()},
+  forcerel(el){const l=S.locks[+el.dataset.i];if(l){unlock(l.key,l.owner,'FORCE_RELEASE');if(l.owner===SESSION&&S.lock)toast('Your own hold was released by an admin.')}$('#admBody').innerHTML=adminBody()},
+  chart(){runCharting();$('#admBody').innerHTML=adminBody()}
+};
+document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el)return;if(el.tagName==='A')return;const f=A[el.dataset.a];if(f){f(el,e)}});
+window.addEventListener('hashchange',render);
+setInterval(()=>{if(location.hash.startsWith('#/pay')||location.hash.startsWith('#/admin'))tick()},1000);
+
+dl();updateBadge();render();
+})();
+</script>
+</body>
+</html>
